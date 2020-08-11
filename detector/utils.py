@@ -2,8 +2,8 @@ import sys
 import os
 import numpy as np
 import torch
-import matplotlib
-matplotlib.use('agg')
+# import matplotlib
+# matplotlib.use('agg')
 import matplotlib.pyplot as plt 
 
 def getFreeId():
@@ -33,9 +33,9 @@ def setgpu(gpuinput):
         gpus = freeids
     else:
         gpus = gpuinput
-        if any([g not in freeids for g in gpus.split(',')]):
-            raise ValueError('gpu'+g+'is being used')
-    print('using gpu '+gpus)
+        # if any([g not in freeids for g in gpus.split(',')]):
+        #     raise ValueError('gpu'+g+'is being used')
+    print(('using gpu '+gpus))
     os.environ['CUDA_VISIBLE_DEVICES']=gpus
     return len(gpus.split(','))
 
@@ -390,57 +390,57 @@ def plotlog(logfile, savepath):
     f.close()
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), traintpr, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valtpr, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), traintpr, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valtpr, label='val')
     plt.legend()
     plt.title('True Positive Rate')
     plt.savefig(savepath+'tpr.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintnr)+1, 1), traintnr, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valtnr, label='val')
+    plt.plot(list(range(1, len(traintnr)+1, 1)), traintnr, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valtnr, label='val')
     plt.legend()
     plt.title('True Negative Rate')
     plt.savefig(savepath+'tnr.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), trainloss, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valloss, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), trainloss, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valloss, label='val')
     plt.legend()
     plt.title('Loss')
     plt.savefig(savepath+'loss.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), trainclassifyloss, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valclassifyloss, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), trainclassifyloss, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valclassifyloss, label='val')
     plt.legend()
     plt.title('Classification Loss')
     plt.savefig(savepath+'classificationloss.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), trainregresslossx, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valregresslossx, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), trainregresslossx, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valregresslossx, label='val')
     plt.legend()
     plt.title('Regresion X Loss')
     plt.savefig(savepath+'regressionxloss.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), trainregresslossy, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valregresslossy, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), trainregresslossy, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valregresslossy, label='val')
     plt.legend()
     plt.title('Regresion Y Loss')
     plt.savefig(savepath+'regressionyloss.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), trainregresslossz, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valregresslossz, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), trainregresslossz, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valregresslossz, label='val')
     plt.legend()
     plt.title('Regresion Z Loss')
     plt.savefig(savepath+'regressionzloss.png')
 
     fig = plt.figure()
-    plt.plot(range(1, len(traintpr)+1, 1), trainregresslossd, label='train')
-    plt.plot(range(1, len(traintpr)+1, 1), valregresslossd, label='val')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), trainregresslossd, label='train')
+    plt.plot(list(range(1, len(traintpr)+1, 1)), valregresslossd, label='val')
     plt.legend()
     plt.title('Regresion D Loss')
     plt.savefig(savepath+'regressiondloss.png')
@@ -468,7 +468,7 @@ def plotnoduledistkaggle(annopath):
     diameter = df['diameter']
 
     dlist = []
-    for i in xrange(diameter.shape[0]):
+    for i in range(diameter.shape[0]):
         if diameter[i] > 0:
             dlist.append(diameter[i])
     plt.hist(dlist, normed=True, bins=50)
@@ -483,7 +483,7 @@ def calrecall(csvpath):
     seriesid = df['seriesuid']
     ttol = seriesid.shape[0]
     pos = len(set(seriesid))
-    print(pos/float(ttol))
+    print((pos/float(ttol)))
 
 def plothistdiameter(trainpath='/media/data1/wentao/tianchi/preprocessing/newtrain/', 
                      testpath='/media/data1/wentao/tianchi/preprocessing/newtest/'):
@@ -491,12 +491,12 @@ def plothistdiameter(trainpath='/media/data1/wentao/tianchi/preprocessing/newtra
     for fname in os.listdir(trainpath):
         if fname.endswith('_label.npy'):
             label = np.load(trainpath+fname)
-            for lidx in xrange(label.shape[0]):
+            for lidx in range(label.shape[0]):
                 diameterlist.append(label[lidx, -1])
     for fname in os.listdir(testpath):
         if fname.endswith('_label.npy'):
             label = np.load(testpath+fname)
-            for lidx in xrange(label.shape[0]):
+            for lidx in range(label.shape[0]):
                 diameterlist.append(label[lidx, -1])
     fig = plt.figure()
     plt.hist(diameterlist, 50)
@@ -508,7 +508,7 @@ def plothistdiameter(trainpath='/media/data1/wentao/tianchi/preprocessing/newtra
 def getrecall(path='/media/data1/wentao/tianchi/CTnoddetector/training/detector/results/res18/baselinebboxlranchorftbig/test55test/'):
     thresh = np.linspace(-15, 0, 31)
     p = 0
-    print thresh.shape, thresh
+    print(thresh.shape, thresh)
     # print recall.size
     tot = 0
     for fname in os.listdir(path):
@@ -518,12 +518,12 @@ def getrecall(path='/media/data1/wentao/tianchi/CTnoddetector/training/detector/
     tot = 0
     for fname in os.listdir(path):
         if fname.endswith('_lbb.npy'):
-            print fname
+            print(fname)
             label = np.load(path+fname, 'r')
             p += label.shape[0]
             pbb = np.load(path+fname[:-8]+'_pbb.npy', 'r')
             if label.shape[0] == 0: continue
-            for thi in xrange(thresh.shape[0]-1, -1, -1):
+            for thi in range(thresh.shape[0]-1, -1, -1):
                 if thi != thresh.shape[0]-1 and recall[thi+1, tot] == label.shape[0]:
                     recall[thi, tot] = label.shape[0]
                     continue 
@@ -531,8 +531,8 @@ def getrecall(path='/media/data1/wentao/tianchi/CTnoddetector/training/detector/
                 tp = 0
                 pbbremain = np.array(pbb[pbb[:,0]>th])
                 lidxbegin = 0
-                for pidx in xrange(pbbremain.shape[0]):
-                    for lidx in xrange(lidxbegin, label.shape[0], 1):
+                for pidx in range(pbbremain.shape[0]):
+                    for lidx in range(lidxbegin, label.shape[0], 1):
                         if np.sum(np.square(pbbremain[pidx, 1:4] - label[lidx, :3])) <= (label[lidx,-1]/2)**2:
                             tp += 1
                             lidxbegin += 1
@@ -545,8 +545,8 @@ def getrecall(path='/media/data1/wentao/tianchi/CTnoddetector/training/detector/
                 # print th, tp
             tot += 1
     recall /= p 
-    print 'p', p
-    print recall.sum(axis=1)
+    print('p', p)
+    print(recall.sum(axis=1))
     fig = plt.figure()
     plt.plot(thresh, recall.sum(axis=1))
     plt.xlabel('Threshold (before sigmoid)')
@@ -573,10 +573,10 @@ def getrecallwrtdetp(path='/media/data1/wentao/tianchi/CTnoddetector/training/de
             tot += 1
             label = np.load(path+fname, 'r')
             p += label.shape[0]
-    print thresh.shape, thresh, tot, p, seriesuidgt[0]
+    print(thresh.shape, thresh, tot, p, seriesuidgt[0])
     recall = np.zeros((thresh.shape[0],))
     colnames = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'probability']
-    for thi in xrange(thresh.shape[0]):
+    for thi in range(thresh.shape[0]):
         df = pd.read_csv(path+'predanno'+'{:02d}'.format(int(thresh[thi]))+'.csv', names=colnames)
         seriesuid = df.seriesuid.tolist()
         coordX = df.coordX.tolist()
@@ -586,7 +586,7 @@ def getrecallwrtdetp(path='/media/data1/wentao/tianchi/CTnoddetector/training/de
         # print coordX, seriesuid, coordY, coordZ
         for fname in set(seriesuidgt[1:]):
             labelx, labely, labelz, labelr = [], [], [], []
-            for seriesidx in xrange(len(seriesuidgt)):
+            for seriesidx in range(len(seriesuidgt)):
                 if seriesuidgt[seriesidx] == fname:
                     labelx.append(float(coordXgt[seriesidx]))
                     labely.append(float(coordYgt[seriesidx]))
@@ -595,15 +595,15 @@ def getrecallwrtdetp(path='/media/data1/wentao/tianchi/CTnoddetector/training/de
 
             labelsignlist = [0]*len(labelx)
             coordXremain, coordYremain, coordZremain = [], [], []
-            for csvidx in xrange(len(seriesuid)):
+            for csvidx in range(len(seriesuid)):
                 # print seriesuid[csvidx], fname[:-8]
                 if seriesuid[csvidx] == fname:
                     coordXremain.append(coordX[csvidx])
                     coordYremain.append(coordY[csvidx])
                     coordZremain.append(coordZ[csvidx])
             # print len(coordX), len(coordXremain)#, labelx#, coordXremain
-            for coordi in xrange(len(coordXremain)):
-                for labeli in xrange(len(label)):
+            for coordi in range(len(coordXremain)):
+                for labeli in range(len(label)):
                     if labelsignlist[labeli] == 1:
                         continue
                     try:
@@ -611,7 +611,7 @@ def getrecallwrtdetp(path='/media/data1/wentao/tianchi/CTnoddetector/training/de
                         float(coordYremain[coordi])
                         float(coordZremain[coordi])
                     except:
-                        print coordXremain[coordi], coordYremain[coordi], coordZremain[coordi]
+                        print(coordXremain[coordi], coordYremain[coordi], coordZremain[coordi])
                     dist = math.pow(float(coordXremain[coordi]) - labelx[labeli], 2.0)
                     dist += math.pow(float(coordYremain[coordi]) - labely[labeli], 2.0)
                     dist += math.pow(float(coordZremain[coordi]) - labelz[labeli], 2.0)
@@ -622,7 +622,7 @@ def getrecallwrtdetp(path='/media/data1/wentao/tianchi/CTnoddetector/training/de
                 if sum(labelsignlist) == label.shape[0]:
                     break
     recall /= float(p)
-    print recall
+    print(recall)
 
     fig = plt.figure()
     plt.plot(thresh, recall)
