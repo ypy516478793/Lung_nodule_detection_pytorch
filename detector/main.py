@@ -75,6 +75,7 @@ def main():
     start_epoch = args.start_epoch
     save_dir = args.save_dir
     
+#    args.resume = True
     if args.resume:
         checkpoint = torch.load(args.resume)
         # if start_epoch == 0:
@@ -92,7 +93,7 @@ def main():
         save_dir = os.path.join('results', args.model + '-' + exp_id)
     else:
         save_dir = os.path.join('results',save_dir)
-
+    
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     logfile = os.path.join(save_dir,'log')
@@ -105,59 +106,36 @@ def main():
     args.n_gpu = n_gpu
     net = net.cuda()
     loss = loss.cuda()
-    cudnn.benchmark = False #True
+    cudnn.benchmark = False                     #True
     net = DataParallel(net)
     traindatadir = config_training['train_preprocess_result_path']
     valdatadir = config_training['val_preprocess_result_path']
     testdatadir = config_training['test_preprocess_result_path']
     trainfilelist = []
-    print(config_training['train_data_path'])
-    for folder in config_training['train_data_path']:
-        print(folder)
-        for f in os.listdir(folder):
-            if f.endswith('.mhd') and f[:-4] not in config_training['black_list']:
-                trainfilelist.append(folder.split('/')[-2]+'/'+f[:-4])
+   # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_train_list.pkl",'rb') as f:
+    #    trainfilelist=pickle.load(f)
+    with open("../methodist_patient_names/methodist_train.pkl",'rb') as f:
+
+        trainfilelist=pickle.load(f)
+        
     valfilelist = []
-    for folder in config_training['val_data_path']:
-        for f in os.listdir(folder):
-            if f.endswith('.mhd') and f[:-4] not in config_training['black_list']:
-                valfilelist.append(folder.split('/')[-2]+'/'+f[:-4])
+    #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_val_list.pkl",'rb') as f:
+     #   valfilelist=pickle.load(f)
+    with open ("../methodist_patient_names/methodist_val.pkl",'rb') as f:
+        valfilelist=pickle.load(f)
     testfilelist = []
-    for folder in config_training['test_data_path']:
-        for f in os.listdir(folder):
-            if f.endswith('.mhd') and f[:-4] not in config_training['black_list']:
-                testfilelist.append(folder.split('/')[-2]+'/'+f[:-4])
-
-    # # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_train_list.pkl",'rb') as f:
-    # #    trainfilelist=pickle.load(f)
-    # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/methodist_patient_names/methodist_train.pkl",
-    #           'rb') as f:
-    #
-    #     trainfilelist = pickle.load(f)
-    #
-    # valfilelist = []
-    # # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_val_list.pkl",'rb') as f:
-    # #   valfilelist=pickle.load(f)
-    # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/methodist_patient_names/methodist_val.pkl",
-    #           'rb') as f:
-    #     valfilelist = pickle.load(f)
-    # testfilelist = []
-    # # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_test_list.pkl",'rb') as f:
-    # #   testfilelist=pickle.load(f)
-    # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/methodist_patient_names/methodist_test.pkl",
-    #           'rb') as f:
-    #     testfilelist = pickle.load(f)
-    # testfilelist = ['download20180608140526download20180608140500001_1_3_12_30000018060618494775800001943']
-
+    #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_test_list.pkl",'rb') as f:
+     #   testfilelist=pickle.load(f)
+    with open("../methodist_patient_names/methodist_test.pkl",'rb') as f:
+        testfilelist=pickle.load(f)
+    testfilelist=['download20180608140526download20180608140500001_1_3_12_30000018060618494775800001943']
     if args.test == 1:
+
         margin = 32
         sidelen = 144
-        # import data
-
-
-
+        import data
         split_comber = SplitComb(sidelen,config['max_stride'],config['stride'],margin,config['pad_value'])
-        dataset = datald.DataBowl3Detector(
+        dataset = data.DataBowl3Detector(
             testdatadir,
             testfilelist,
             config,
@@ -168,19 +146,20 @@ def main():
             batch_size = 1,
             shuffle = False,
             num_workers = 0,
-            collate_fn = datald.collate,
+            collate_fn = data.collate,
             pin_memory=False)
 
-        # for i, (data, target, coord, nzhw) in enumerate(test_loader): # check data consistency
-        #     if i >= len(testfilelist)/args.batch_size:
-        #         break
-
+        for i, (data, target, coord, nzhw) in enumerate(test_loader): # check data consistency
+            if i >= len(testfilelist)/args.batch_size:
+                break
+        
         test(test_loader, net, get_pbb, save_dir,config)
+
         return
     #net = DataParallel(net)
-    # import data
+    from detector import data
     print(len(trainfilelist))
-    dataset = datald.DataBowl3Detector(
+    dataset = data.DataBowl3Detector(
         traindatadir,
         trainfilelist,
         config,
@@ -192,7 +171,7 @@ def main():
         num_workers = 0,
         pin_memory=True)
 
-    dataset = datald.DataBowl3Detector(
+    dataset = data.DataBowl3Detector(
         valdatadir,
         valfilelist,
         config,
@@ -260,7 +239,7 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
 
     if epoch % args.save_freq == 0:            
         state_dict = net.module.state_dict()
-        for key in list(state_dict.keys()):
+        for key in state_dict.keys():
             state_dict[key] = state_dict[key].cpu()
             
         torch.save({
@@ -273,21 +252,22 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
     end_time = time.time()
 
     metrics = np.asarray(metrics, np.float32)
-    print(('Epoch %03d (lr %.5f)' % (epoch, lr)))
-    print(('Train:      tpr %3.2f, tnr %3.2f, total pos %d, total neg %d, time %3.2f' % (
+    print('Epoch %03d (lr %.5f)' % (epoch, lr))
+    print('Train:      tpr %3.2f, tnr %3.2f, total pos %d, total neg %d, time %3.2f' % (
         100.0 * np.sum(metrics[:, 6]) / np.sum(metrics[:, 7]),
         100.0 * np.sum(metrics[:, 8]) / np.sum(metrics[:, 9]),
         np.sum(metrics[:, 7]),
         np.sum(metrics[:, 9]),
-        end_time - start_time)))
-    print(('loss %2.4f, classify loss %2.4f, regress loss %2.4f, %2.4f, %2.4f, %2.4f' % (
+        end_time - start_time))
+    print('loss %2.4f, classify loss %2.4f, regress loss %2.4f, %2.4f, %2.4f, %2.4f' % (
         np.mean(metrics[:, 0]),
         np.mean(metrics[:, 1]),
         np.mean(metrics[:, 2]),
         np.mean(metrics[:, 3]),
         np.mean(metrics[:, 4]),
-        np.mean(metrics[:, 5]))))
-    print()
+        np.mean(metrics[:, 5])))
+    print
+
 
 def validate(data_loader, net, loss):
     start_time = time.time()
@@ -297,6 +277,7 @@ def validate(data_loader, net, loss):
     metrics = []
     for i, (data, target, coord) in enumerate(data_loader):
         with torch.no_grad():
+            
             data = Variable(data.cuda(async = True))
             target = Variable(target.cuda(async = True))
             coord = Variable(coord.cuda(async = True))
@@ -309,21 +290,21 @@ def validate(data_loader, net, loss):
     end_time = time.time()
 
     metrics = np.asarray(metrics, np.float32)
-    print(('Validation: tpr %3.2f, tnr %3.8f, total pos %d, total neg %d, time %3.2f' % (
+    print('Validation: tpr %3.2f, tnr %3.8f, total pos %d, total neg %d, time %3.2f' % (
         100.0 * np.sum(metrics[:, 6]) / np.sum(metrics[:, 7]),
         100.0 * np.sum(metrics[:, 8]) / np.sum(metrics[:, 9]),
         np.sum(metrics[:, 7]),
         np.sum(metrics[:, 9]),
-        end_time - start_time)))
-    print(('loss %2.4f, classify loss %2.4f, regress loss %2.4f, %2.4f, %2.4f, %2.4f' % (
+        end_time - start_time))
+    print('loss %2.4f, classify loss %2.4f, regress loss %2.4f, %2.4f, %2.4f, %2.4f' % (
         np.mean(metrics[:, 0]),
         np.mean(metrics[:, 1]),
         np.mean(metrics[:, 2]),
         np.mean(metrics[:, 3]),
         np.mean(metrics[:, 4]),
-        np.mean(metrics[:, 5]))))
-    print()
-    print()
+        np.mean(metrics[:, 5])))
+    print
+    print
 
 def test(data_loader, net, get_pbb, save_dir, config):
     start_time = time.time()
@@ -335,7 +316,8 @@ def test(data_loader, net, get_pbb, save_dir, config):
     namelist = []
     split_comber = data_loader.dataset.split_comber
     for i_name, (data, target, coord, nzhw) in enumerate(data_loader):
-
+        
+        print
         print("I am at iteration "+str(i_name))
         
         s = time.time()
@@ -355,6 +337,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
         n_per_run = args.n_test
          
         splitlist = range(0,len(data)+1,n_per_run)   # Check if n_per_run is doing something to the splitlist.
+         
         if splitlist[-1]!=len(data):
             list(splitlist).append(len(data))
         outputlist = []
@@ -382,7 +365,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
         if isfeat:
             feature = np.concatenate(featurelist,0).transpose([0,2,3,4,1])[:,:,:,:,:,np.newaxis]
             feature = split_comber.combine(feature,sidelen)[...,0]
-
+        
         thresh = args.testthresh # -8 #-3
         print('pbb thresh', thresh)
         pbb,mask = get_pbb(output,thresh,ismask=True)
@@ -425,10 +408,10 @@ def test(data_loader, net, get_pbb, save_dir, config):
 
 def singletest(data,net,config,splitfun,combinefun,n_per_run,margin = 64,isfeat=False):
     z, h, w = data.size(2), data.size(3), data.size(4)
-    print((data.size()))
+    print(data.size())
     data = splitfun(data,config['max_stride'],margin)
-    data = Variable(data.cuda(async = True), volatile = True,requires_grad=False)
-    splitlist = list(range(0,args.split+1,n_per_run))
+    data = Variable(data.cuda(async= True), volatile = True,requires_grad=False)
+    splitlist = range(0,args.split+1,n_per_run)
     outputlist = []
     featurelist = []
     for i in range(len(splitlist)-1):
