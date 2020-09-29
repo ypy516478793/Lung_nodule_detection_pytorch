@@ -46,7 +46,7 @@ cdzlst = antclscsv['coordZ'].tolist()[1:]
 dimlst = antclscsv['diameter_mm'].tolist()[1:]
 mlglst = antclscsv['malignant'].tolist()[1:]
 gtdct = {}
-for idx in xrange(len(srslst)):
+for idx in range(len(srslst)):
     vlu = [float(cdxlst[idx]), float(cdylst[idx]), float(cdzlst[idx]), float(dimlst[idx]), int(mlglst[idx])]
     if srslst[idx].split('-')[0] not in gtdct: gtdct[srslst[idx].split('-')[0]] = [vlu]
     else: gtdct[srslst[idx].split('-')[0]].append(vlu)
@@ -61,7 +61,7 @@ cdzlst = prdcsv['coordZ'].tolist()[1:]
 prblst = prdcsv['probability'].tolist()[1:]
 # build dict first for rach seriesuid
 srsdct = {}
-for idx in xrange(len(srslst)):
+for idx in range(len(srslst)):
     vlu = [cdxlst[idx], cdylst[idx], cdzlst[idx], prblst[idx]]
     if srslst[idx] not in srsdct: srsdct[srslst[idx]] = [vlu]
     else: srsdct[srslst[idx]].append(vlu)
@@ -78,7 +78,7 @@ telablst = []
 tedimlst = []
 import math
 testnodmask = []
-for srs, vlu in srsdct.iteritems():
+for srs, vlu in srsdct.items():
     pbb = np.load(os.path.join(pbbpth, srs+'_pbb.npy'))
     lbb = np.load(os.path.join(pbbpth, srs+'_lbb.npy')) # list, x y z d
     # sliceim,origin,spacing,isflip = load_itk_image(os.path.join(rawpth, srslst[idx]+'.mhd'))
@@ -92,7 +92,7 @@ for srs, vlu in srsdct.iteritems():
     assert pbb.shape[0] == len(vlu)
     kptpbb = np.array(pbb[:5, :]) # prob, x, y, z, d # 5: first version for all; 
     # find the true label
-    for idx in xrange(kptpbb.shape[0]):
+    for idx in range(kptpbb.shape[0]):
         tefnmlst.append(srs)
         tecdxlst.append(kptpbb[idx, 1])
         tecdylst.append(kptpbb[idx, 2])
@@ -118,7 +118,7 @@ for srs, vlu in srsdct.iteritems():
             telablst.append(0)
             testnodmask.append(0)
         trudat[srs] = kptpbb
-print(len(telablst), sum(telablst), np.sum(kptpbb[:,0]))
+print((len(telablst), sum(telablst), np.sum(kptpbb[:,0])))
 # load train data
 # tedetpath = '/media/data1/wentao/CTnoddetector/training/detector/results/res18/ft96'+str(fold)+'/train'+str(ep)+'/predanno-3.csv'
 # # fid = open(tedetpath, 'r')
@@ -241,8 +241,8 @@ for fname in os.listdir(preprocesspath):
         pixvlu += np.sum(data * data)
 pixstd = np.sqrt(pixvlu / float(npix))
 # pixstd /= 255
-print(pixmean, pixstd)
-print('mean '+str(pixmean)+' std '+str(pixstd))
+print((pixmean, pixstd))
+print(('mean '+str(pixmean)+' std '+str(pixstd)))
 # Datatransforms
 print('==> Preparing data..') # Random Crop, Zero out, x z flip, scale, 
 # transform_test = transforms.Compose([
@@ -308,7 +308,7 @@ for srsid, label, x, y, z, d in zip(tefnmlst, telablst, tecdxlst, tecdylst, tecd
     tesrslst.append(srsid)
     telabellst.append(int(label))
     tefeatlst.append(feat)
-print(len(telabellst), sum(telabellst))
+print((len(telabellst), sum(telabellst)))
 # for srsid, label, x, y, z, d in zip(trfnmlst, trlablst, trcdxlst, trcdylst, trcdzlst, trdimlst):
 #     mxx = max(abs(float(x)), mxx)
 #     mxy = max(abs(float(y)), mxy)
@@ -462,7 +462,7 @@ idx = 0
 #         testlabel[idx+i] = np.array((targets[i].data).cpu().numpy())
 #         # predlabel[idx+i] = np.array((Variable(predicted[i]).data).cpu().numpy())
 #     idx += len(targets)
-print(testlabel.shape, len(testnodmask))#, testfeat.shape, testlabel)#, trainfeat[:, 3])
+print((testlabel.shape, len(testnodmask)))#, testfeat.shape, testlabel)#, trainfeat[:, 3])
 import numpy as np 
 ptlabeldct = np.load('/media/data1/wentao/tianchi/luna16/CSVFILES/ptlabel'+str(fold)+'.npy').item()
 dctptlabel = np.load('/media/data1/wentao/tianchi/luna16/CSVFILES/dctptlabel'+str(fold)+'.npy').item()
@@ -480,7 +480,7 @@ bestkappavlu = [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]]
 bestkappanod = 0
 bestkappavlunod = [0,0,0,0]
 testlabel = np.asarray(telabellst)
-for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
+for ep in range(epb,epe,1):#55,56,1):#0,105,1):#50):
     for predtype in [0]:#,1]:
         ncorrect = [0]*4
         nct = [0]*4
@@ -490,7 +490,7 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
         else:
             predlabel = np.load(savemodelpath+'gbtpred'+str(ep)+'.npy')
         # assert predlabel.shape[0] == testlabel.shape[0]
-        print(ep, predlabel.shape, testlabel.shape)
+        print((ep, predlabel.shape, testlabel.shape))
         gbtteacc = np.mean(predlabel == testlabel)
         # Save checkpoint.
         # acc = 100.*correct/total
@@ -501,7 +501,7 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
         ng = 0
         tp = 0
         tn = 0
-        for idx in xrange(predlabel.shape[0]):
+        for idx in range(predlabel.shape[0]):
             if testnodmask[idx] == 0: continue
             if abs(testlabel[idx] - 1) < 1e-2:
                 np += 1
@@ -509,7 +509,7 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
             else:
                 ng += 1
                 if abs(predlabel[idx]) < 1e-2: tn += 1
-        print(np, tp, ng, tn, gbtteacc, (tp+tn)/float(np+ng), predlabel.shape, testlabel.shape, len(testnodmask))#, tp/float(np), tn/float(ng))
+        print((np, tp, ng, tn, gbtteacc, (tp+tn)/float(np+ng), predlabel.shape, testlabel.shape, len(testnodmask)))#, tp/float(np), tn/float(ng))
         if maxacc < (tp+tn)/float(np+ng):
             maxacc = (tp+tn)/float(np+ng)
             maxi = ep
@@ -531,14 +531,14 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
         # patient level
         np = ng = tp = tn = 0
         ptlabel = {}
-        for idx in xrange(len(tesrslst)):
+        for idx in range(len(tesrslst)):
             # if testnodmask[idx] == 0: continue
             if tesrslst[idx] not in ptlabel: ptlabel[tesrslst[idx]] = testlabel[idx]
             elif testlabel[idx] == 1:
                 ptlabel[tesrslst[idx]] = 1
         # print(len(ptlabel.keys()), sum(ptlabel.values()))
         prddct = {}
-        for idx in xrange(predlabel.shape[0]):
+        for idx in range(predlabel.shape[0]):
             # if testnodmask[idx] == 0: continue
             if tesrslst[idx] not in prddct: prddct[tesrslst[idx]] = predlabel[idx]
             elif predlabel[idx] == 1:
@@ -548,7 +548,7 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
         pn = 0
         npp = 0
         kappavlu = [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]]
-        for k in prddct.keys():
+        for k in list(prddct.keys()):
             if k not in prddct or k not in ptlabel: continue
             if k in dctptlabel:
                 # if dctptlabel[k][0] == prddct[k]: ncorrect[0] += 1
@@ -608,7 +608,7 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
         acc3.append(ncorrect[2]/nct[2])
         acc4.append(ncorrect[3]/nct[3])
 
-        for d in xrange(4):
+        for d in range(4):
             pp, nn, pn, npp = kappavlu[d][0], kappavlu[d][1], kappavlu[d][2], kappavlu[d][3]
             n = pp + nn + pn + npp
             p0 = (pp + nn) / float(n)
@@ -650,9 +650,9 @@ for ep in xrange(epb,epe,1):#55,56,1):#0,105,1):#50):
             # if prddct[k] == 0 and ptlabel[k] == 0: tn += 1
             # if prddct[k] == 1 and ptlabel[k] == 1: tp += 1
         # print(sum(ptlabel.values()), len(prddct.keys()), tp, tn, (tp+tn)/float(len(prddct.keys())))#, tp/float(sum(ptlabel.values())), tn/float(len(prddct.keys())-sum(ptlabel.values())))
-print(maxacc, maxi)
-print(max(acc1), max(acc2), max(acc3), max(acc4))
+print((maxacc, maxi))
+print((max(acc1), max(acc2), max(acc3), max(acc4)))
 print(bestacc)
-print(bestaccall, bestpp, bestnn, bestpn, bestnpp)
-print(bestkappa, bestkappavlu)
-print(bestkappanod, bestkappavlunod)
+print((bestaccall, bestpp, bestnn, bestpn, bestnpp))
+print((bestkappa, bestkappavlu))
+print((bestkappanod, bestkappavlunod))

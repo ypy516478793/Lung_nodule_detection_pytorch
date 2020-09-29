@@ -33,7 +33,7 @@ crdzlst = pdframe['coordZ'].tolist()[1:]
 dimlst = pdframe['diameter_mm'].tolist()[1:]
 mlglst = pdframe['malignant'].tolist()[1:]
 dct = {}
-for idx in xrange(len(srslst)):
+for idx in range(len(srslst)):
     # if mlglst[idx] == '0':
     #     continue
     assert mlglst[idx] in ['1', '0']
@@ -71,9 +71,9 @@ def process(pid):
     return retlst
 from multiprocessing import Pool
 p = Pool(30)
-newlst = p.map(process, dct.keys())
+newlst = p.map(process, list(dct.keys()))
 p.close()
-print(len(dct.keys()), len(newlst))
+print((len(list(dct.keys())), len(newlst)))
 # for pid in dct.keys():
 #     print pid
 #     Mask,origin,spacing,isflip = load_itk_image(os.path.join(rawpath, pid+'.mhd'))
@@ -99,7 +99,7 @@ savecsv = 'annotationdetclsconv_v3.csv'
 fid = open(savecsv, 'w')
 writer = csv.writer(fid)
 writer.writerow(['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'malignant'])
-for idx in xrange(len(newlst)):
-    for subidx in xrange(len(newlst[idx])):
+for idx in range(len(newlst)):
+    for subidx in range(len(newlst[idx])):
         writer.writerow(newlst[idx][subidx])
 fid.close()

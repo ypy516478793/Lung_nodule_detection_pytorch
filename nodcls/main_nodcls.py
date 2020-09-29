@@ -1,5 +1,5 @@
 '''Train CIFAR10 with PyTorch.'''
-from __future__ import print_function
+
 
 import torch
 import torch.nn as nn
@@ -116,12 +116,12 @@ for srsid, label, x, y, z, d in zip(alllst, labellst, crdxlst, crdylst, crdzlst,
         trfnamelst.append(srsid+'.npy')
         trlabellst.append(int(label))
         trfeatlst.append(feat)
-for idx in xrange(len(trfeatlst)):
+for idx in range(len(trfeatlst)):
     # trfeatlst[idx][0] /= mxx
     # trfeatlst[idx][1] /= mxy
     # trfeatlst[idx][2] /= mxz
     trfeatlst[idx][-1] /= mxd
-for idx in xrange(len(tefeatlst)):
+for idx in range(len(tefeatlst)):
     # tefeatlst[idx][0] /= mxx
     # tefeatlst[idx][1] /= mxy
     # tefeatlst[idx][2] /= mxz
@@ -162,7 +162,7 @@ def get_lr(epoch):
     return lr
 if use_cuda:
     net.cuda()
-    net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+    net = torch.nn.DataParallel(net, device_ids=list(range(torch.cuda.device_count())))
     cudnn.benchmark = False #True
 
 criterion = nn.CrossEntropyLoss()
@@ -198,7 +198,7 @@ def train(epoch):
         # print(torch.stack(targets).data.numpy().shape, torch.stack(feat).data.numpy().shape)
         # print((dfeat.data).cpu().numpy().shape)
         trainfeat[idx:idx+len(targets), :2560] = np.array((dfeat.data).cpu().numpy())
-        for i in xrange(len(targets)):
+        for i in range(len(targets)):
             trainfeat[idx+i, 2560:] = np.array((Variable(feat[i]).data).cpu().numpy())
             trainlabel[idx+i] = np.array((targets[i].data).cpu().numpy())
         idx += len(targets)
@@ -236,7 +236,7 @@ def test(epoch, m):
         outputs, dfeat = net(inputs)
         # add feature into the array
         testfeat[idx:idx+len(targets), :2560] = np.array((dfeat.data).cpu().numpy())
-        for i in xrange(len(targets)):
+        for i in range(len(targets)):
             testfeat[idx+i, 2560:] = np.array((Variable(feat[i]).data).cpu().numpy())
             testlabel[idx+i] = np.array((targets[i].data).cpu().numpy())
         idx += len(targets)

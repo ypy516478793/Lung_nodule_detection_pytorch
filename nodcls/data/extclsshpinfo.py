@@ -50,7 +50,7 @@ cdylist = lunaantframe.coordY.tolist()[1:]
 cdzlist = lunaantframe.coordZ.tolist()[1:]
 dimlist = lunaantframe.diameter_mm.tolist()[1:]
 lunaantdict = {}
-for idx in xrange(len(srslist)):
+for idx in range(len(srslist)):
 	vlu = [float(cdxlist[idx]), float(cdylist[idx]), float(cdzlist[idx]), float(dimlist[idx])]
 	if srslist[idx] in lunaantdict:
 		lunaantdict[srslist[idx]].append(vlu)
@@ -59,9 +59,9 @@ for idx in xrange(len(srslist)):
 # convert luna16 annotation to LIDC-IDRI annotation space
 from multiprocessing import Pool
 lunantdictlidc = {}
-for fold in xrange(10):
+for fold in range(10):
 	mhdpath = '/media/data1/wentao/tianchi/luna16/subset'+str(fold)
-	print 'fold', fold
+	print('fold', fold)
 	def getvoxcrd(fname):
 		sliceim,origin,spacing,isflip = load_itk_image(os.path.join(mhdpath, fname))
 		lunantdictlidc[fname[:-4]] = []
@@ -119,27 +119,27 @@ for s in wb.sheets():
 import dicom
 LIDCpath = '/media/data1/wentao/LIDC-IDRI/DOI/'
 antdictscan = {}
-for k, v in antdict.iteritems():
+for k, v in antdict.items():
 	pid, scan = k.split('_')
 	hasscan = False
 	for sdu in os.listdir(os.path.join(LIDCpath, 'LIDC-IDRI-'+pid)):
 		for srs in os.listdir(os.path.join(*[LIDCpath, 'LIDC-IDRI-'+pid, sdu])):
 			if srs.endswith('.npy'):
-				print 'npy', pid, scan, srs
+				print('npy', pid, scan, srs)
 				continue
 			RefDs = dicom.read_file(os.path.join(*[LIDCpath, 'LIDC-IDRI-'+pid, sdu, srs, '000006.dcm']))
 			# print scan, str(RefDs[0x20, 0x11].value)
 			if str(RefDs[0x20, 0x11].value) == scan or scan == '0': 
-				if hasscan: print 'rep', pid, sdu, srs
+				if hasscan: print('rep', pid, sdu, srs)
 				hasscan = True
 				antdictscan[pid+'_'+srs] = v
 				break
-	if not hasscan: print 'not found', pid, scan, sdu, srs
+	if not hasscan: print('not found', pid, scan, sdu, srs)
 # find the match from LIDC-IDRI annotation
 import math
 lunaantdictnodid = {}
 maxdist = 0
-for srcid, lunaantlidc in lunantdictlidc.iteritems():
+for srcid, lunaantlidc in lunantdictlidc.items():
 	lunaantdictnodid[srcid] = []
 	pid, stdid = sidmap[srcid]
 	# print pid
@@ -158,25 +158,25 @@ for srcid, lunaantlidc in lunantdictlidc.iteritems():
 				mindist = dist
 				minidx = idx
 		if mindist > 71:#15.1:
-			print srcid, pid, voxcrd, antdictscan[pid+'_'+srcid], mindist
+			print(srcid, pid, voxcrd, antdictscan[pid+'_'+srcid], mindist)
 		maxdist = max(maxdist, mindist)
 		lunaantdictnodid[srcid].append([lunaant, antdictscan[pid+'_'+srcid][minidx][6:]])
 np.save('lunaantdictnodid.npy', lunaantdictnodid)
-print 'maxdist', maxdist
+print('maxdist', maxdist)
 # save it into a csv
 import csv
 savename = 'annotationnodid.csv'
 fid = open(savename, 'w')
 writer = csv.writer(fid)
 writer.writerow(['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm'])
-for srcid, ant in lunaantdictnodid.iteritems():
+for srcid, ant in lunaantdictnodid.items():
 	for antsub in ant:
 		writer.writerow([srcid] + [antsub[0][0], antsub[0][1], antsub[0][2], antsub[0][3]] + antsub[1])
 fid.close()
 # find the malignancy, shape information from xml file
 import xml.dom.minidom
 lunadctclssgmdict = {}
-for srsid, extant in lunaantdictnodid.iteritems():
+for srsid, extant in lunaantdictnodid.items():
 	lunadctclssgmdict[srsid] = []
 	pid, stdid = sidmap[srsid]
 	for extantvlu in extant:
@@ -240,11 +240,15 @@ fid = open(savename, 'w')
 writer = csv.writer(fid)
 writer.writerow(['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'malignant', 'calcification', \
 	'sphericity', 'margin', 'lobulation', 'spiculation', 'texture'])
-for srsid, extant in lunadctclssgmdict.iteritems():
+for srsid, extant in lunadctclssgmdict.items():
 	for subextant in extant:
 		writer.writerow(subextant)
 fid.close()
-discrete the generated csv
+
+
+
+
+# discrete the generated csv
 import pandas as pd 
 import csv
 srcname = 'annotationdetclssgm.csv'
@@ -267,7 +271,7 @@ txtlist = srcframe.texture.tolist()[1:]
 fid = open(dstname, 'w')
 writer = csv.writer(fid)
 writer.writerow(colname)
-for idx in xrange(len(srslist)):
+for idx in range(len(srslist)):
 	lst = [srslist[idx], cdxlist[idx], cdylist[idx], cdzlist[idx], dimlist[idx]]
 	if abs(float(mlglist[idx]) - 0) < 1e-2: # 0 1 2
 		lst.append(0)
@@ -343,7 +347,7 @@ for idx, srs in enumerate(srslst):
 fid = open('annotationdetclssgmv2.csv', 'w')
 writer = csv.writer(fid)
 writer.writerow(['seriesuid', 'malignant'])
-for srs, vlulst in dctdat.iteritems():
+for srs, vlulst in dctdat.items():
 	mlg = -1
 	for vlu in vlulst:
 		mlg = max(mlg, vlu[0])

@@ -51,7 +51,7 @@ cdylist = lunaantframe.coordY.tolist()[1:]
 cdzlist = lunaantframe.coordZ.tolist()[1:]
 dimlist = lunaantframe.diameter_mm.tolist()[1:]
 lunaantdict = {}
-for idx in xrange(len(srslist)):
+for idx in range(len(srslist)):
 	vlu = [float(cdxlist[idx]), float(cdylist[idx]), float(cdzlist[idx]), float(dimlist[idx])]
 	if srslist[idx] in lunaantdict:
 		lunaantdict[srslist[idx]].append(vlu)
@@ -120,27 +120,27 @@ for s in wb.sheets():
 import dicom
 LIDCpath = '/media/data1/wentao/LIDC-IDRI/DOI/'
 antdictscan = {}
-for k, v in antdict.iteritems():
+for k, v in antdict.items():
 	pid, scan = k.split('_')
 	hasscan = False
 	for sdu in os.listdir(os.path.join(LIDCpath, 'LIDC-IDRI-'+pid)):
 		for srs in os.listdir(os.path.join(*[LIDCpath, 'LIDC-IDRI-'+pid, sdu])):
 			if srs.endswith('.npy'):
-				print 'npy', pid, scan, srs
+				print('npy', pid, scan, srs)
 				continue
 			RefDs = dicom.read_file(os.path.join(*[LIDCpath, 'LIDC-IDRI-'+pid, sdu, srs, '000006.dcm']))
 			# print scan, str(RefDs[0x20, 0x11].value)
 			if str(RefDs[0x20, 0x11].value) == scan or scan == '0': 
-				if hasscan: print 'rep', pid, sdu, srs
+				if hasscan: print('rep', pid, sdu, srs)
 				hasscan = True
 				antdictscan[pid+'_'+srs] = v
 				break
-	if not hasscan: print 'not found', pid, scan, sdu, srs
+	if not hasscan: print('not found', pid, scan, sdu, srs)
 # find the match from LIDC-IDRI annotation
 import math
 lunaantdictnodid = {}
 maxdist = 0
-for srcid, lunaantlidc in lunantdictlidc.iteritems():
+for srcid, lunaantlidc in lunantdictlidc.items():
 	lunaantdictnodid[srcid] = []
 	pid, stdid = sidmap[srcid]
 	# print pid
@@ -159,11 +159,11 @@ for srcid, lunaantlidc in lunantdictlidc.iteritems():
 				mindist = dist
 				minidx = idx
 		if mindist > 71:#15.1:
-			print srcid, pid, voxcrd, antdictscan[pid+'_'+srcid], mindist
+			print(srcid, pid, voxcrd, antdictscan[pid+'_'+srcid], mindist)
 		maxdist = max(maxdist, mindist)
 		lunaantdictnodid[srcid].append([lunaant, antdictscan[pid+'_'+srcid][minidx][6:]])
 # np.save('lunaantdictnodid.npy', lunaantdictnodid)
-print 'maxdist', maxdist
+print('maxdist', maxdist)
 # save it into a csv
 # import csv
 # savename = 'annotationnodid.csv'
@@ -183,7 +183,7 @@ import xml.dom.minidom
 ndoc = 0
 lunadctclssgmdict = {}
 mallstall, callstall, sphlstall, marlstall, loblstall, spilstall, texlstall = [], [], [], [], [], [], []
-for srsid, extant in lunaantdictnodid.iteritems():
+for srsid, extant in lunaantdictnodid.items():
 	if srsid not in fd1lst: continue
 	lunadctclssgmdict[srsid] = []
 	pid, stdid = sidmap[srsid]
@@ -202,7 +202,7 @@ for srsid, extant in lunaantdictnodid.iteritems():
 					for unb in unblinds:
 						nod = unb.getElementsByTagName('noduleID')
 						if len(nod) != 1: 
-							print 'more nod', nod
+							print('more nod', nod)
 							continue
 						if nod[0].firstChild.data in extantvlu[1]:
 							getnodid.append(nod[0].firstChild.data)
@@ -211,7 +211,7 @@ for srsid, extant in lunaantdictnodid.iteritems():
 								mallst.append(float(mal[0].firstChild.data))
 		# print(getnodid, extantvlu[1], nant)
 		if len(getnodid) > len(extantvlu[1]): 
-			print pid, srsid
+			print(pid, srsid)
 			# assert 1 == 0
 		ndoc = max(ndoc, len(getnodid), len(extantvlu[1]))
 		vlulst = [srsid, extantvlu[0][0], extantvlu[0][1], extantvlu[0][2], extantvlu[0][3]]
@@ -233,7 +233,7 @@ import csv
 # fid = open('annotationdetclsconvfnl_v3.csv', 'w')
 # writer = csv.writer(fid)
 # writer.writerow(['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'malignant'])
-for i in xrange(len(srslst)):
+for i in range(len(srslst)):
 	# writer.writerow([srslst[i]+'-'+str(i), crdxlst[i], crdylst[i], crdzlst[i], dimlst[i], mlglst[i]])
 	newlst.append([srslst[i]+'-'+str(i), crdxlst[i], crdylst[i], crdzlst[i], dimlst[i], mlglst[i]])
 # fid.close()
@@ -243,10 +243,10 @@ for fname in os.listdir(subset1path):
 	if fname.endswith('.mhd'):
 		testfnamelst.append(fname[:-4])
 ntest = 0
-for idx in xrange(len(newlst)):
+for idx in range(len(newlst)):
 	fname = newlst[idx][0]
 	if fname.split('-')[0] in testfnamelst: ntest +=1
-print 'ntest', ntest, 'ntrain', len(newlst)-ntest
+print('ntest', ntest, 'ntrain', len(newlst)-ntest)
 prednamelst = {}
 predacc = 0
 predidx = 0
@@ -270,7 +270,7 @@ pixdimidx = -1
 # get the patient level cancer
 ptlabel = {}
 nfold1 = 0
-for srsid, extant in lunadctclssgmdict.iteritems():
+for srsid, extant in lunadctclssgmdict.items():
 	if srsid not in fd1lst: continue
 	nfold1 += 1
 	for subextant in extant:
@@ -281,10 +281,10 @@ for srsid, extant in lunadctclssgmdict.iteritems():
 			break
 		else:
 			ptlabel[srsid] = 0
-print(len(lunadctclssgmdict.keys()), nfold1, len(ptlabel.keys()), sum(ptlabel.values()))
+print((len(list(lunadctclssgmdict.keys())), nfold1, len(list(ptlabel.keys())), sum(ptlabel.values())))
 # get doctors prediction on patient level cancer
 dctptlabel = {}
-for srsid, extant in lunadctclssgmdict.iteritems():
+for srsid, extant in lunadctclssgmdict.items():
 	curidx = 0
 	if srsid not in fd1lst: continue
 	for subextant in extant:
@@ -293,7 +293,7 @@ for srsid, extant in lunadctclssgmdict.iteritems():
 		dctptlabel[srsid] = [-1]*max(len(subextant) - 6, 4)
 
 		# writer.writerow(subextant)
-		for did in xrange(6, len(subextant),1):#len(subextant), 1):
+		for did in range(6, len(subextant),1):#len(subextant), 1):
 			# if 0.499 <= prednamelst[srsid][curidx] <= 0.501: continue
 			if subextant[did] == 3: continue
 			if subextant[did] > 3: dctptlabel[srsid][did-6] = 1
@@ -303,7 +303,7 @@ p = [0]*4
 n = [0]*4
 tp = [0]*4
 np = [0]*4
-for srs in ptlabel.keys():
+for srs in list(ptlabel.keys()):
 	if dctptlabel[srs][0] != -1:
 		n[0] += 1
 		if ptlabel[srs] == 1: np[0] += 1
@@ -332,11 +332,11 @@ for srs in ptlabel.keys():
 			p[3] += 1
 			if ptlabel[srs] == 1:
 				tp[3] += 1
-print(p, n, tp, np, len(ptlabel))
-print(p[0]/float(n[0]), tp[0]/float(np[0]), (p[0]-tp[0])/float(n[0]-np[0]))
-print(p[1]/float(n[1]), tp[1]/float(np[1]), (p[1]-tp[1])/float(n[1]-np[1]))
-print(p[2]/float(n[2]), tp[2]/float(np[2]), (p[2]-tp[2])/float(n[2]-np[2]))
-print(p[3]/float(n[3]), tp[3]/float(np[3]), (p[3]-tp[3])/float(n[3]-np[3]))
+print((p, n, tp, np, len(ptlabel)))
+print((p[0]/float(n[0]), tp[0]/float(np[0]), (p[0]-tp[0])/float(n[0]-np[0])))
+print((p[1]/float(n[1]), tp[1]/float(np[1]), (p[1]-tp[1])/float(n[1]-np[1])))
+print((p[2]/float(n[2]), tp[2]/float(np[2]), (p[2]-tp[2])/float(n[2]-np[2])))
+print((p[3]/float(n[3]), tp[3]/float(np[3]), (p[3]-tp[3])/float(n[3]-np[3])))
 import numpy as np 
 np.save('ptlabel'+str(fold)+'.npy', ptlabel)
 np.save('dctptlabel'+str(fold)+'.npy', dctptlabel)

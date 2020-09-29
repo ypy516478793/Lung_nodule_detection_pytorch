@@ -150,9 +150,9 @@ def plot_log(logname='/media/data1/wentao/CTnoddetector/training/nodcls/log-1'):
             # print acc
             teacclst.append(float(acc))#/100)
     fid.close()
-    print(max(teacclst))
-    plt.plot(range(len(tracclst)), tracclst, label='train accuracy')
-    plt.plot(range(len(tracclst)), teacclst, label='test accuracy')
+    print((max(teacclst)))
+    plt.plot(list(range(len(tracclst))), tracclst, label='train accuracy')
+    plt.plot(list(range(len(tracclst))), teacclst, label='test accuracy')
     plt.legend()
     plt.savefig('log-1plt.png')
     # print(max(teacclst))

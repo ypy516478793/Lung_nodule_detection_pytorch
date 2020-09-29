@@ -47,7 +47,7 @@ cdzlst = antclscsv['coordZ'].tolist()[1:]
 dimlst = antclscsv['diameter_mm'].tolist()[1:]
 mlglst = antclscsv['malignant'].tolist()[1:]
 gtdct = {}
-for idx in xrange(len(srslst)):
+for idx in range(len(srslst)):
     vlu = [float(cdxlst[idx]), float(cdylst[idx]), float(cdzlst[idx]), float(dimlst[idx]), int(mlglst[idx])]
     if srslst[idx].split('-')[0] not in gtdct: gtdct[srslst[idx].split('-')[0]] = [vlu]
     else: gtdct[srslst[idx].split('-')[0]].append(vlu)
@@ -63,7 +63,7 @@ cdzlst = prdcsv['coordZ'].tolist()[1:]
 prblst = prdcsv['probability'].tolist()[1:]
 # build dict first for rach seriesuid
 srsdct = {}
-for idx in xrange(len(srslst)):
+for idx in range(len(srslst)):
     vlu = [cdxlst[idx], cdylst[idx], cdzlst[idx], prblst[idx]]
     if srslst[idx] not in srsdct: srsdct[srslst[idx]] = [vlu]
     else: srsdct[srslst[idx]].append(vlu)
@@ -79,7 +79,7 @@ tecdzlst = []
 telablst = []
 tedimlst = []
 import math
-for srs, vlu in srsdct.iteritems():
+for srs, vlu in srsdct.items():
     pbb = np.load(os.path.join(pbbpth, srs+'_pbb.npy'))
     lbb = np.load(os.path.join(pbbpth, srs+'_lbb.npy')) # list, x y z d
     # sliceim,origin,spacing,isflip = load_itk_image(os.path.join(rawpth, srslst[idx]+'.mhd'))
@@ -93,7 +93,7 @@ for srs, vlu in srsdct.iteritems():
     assert pbb.shape[0] == len(vlu)
     kptpbb = np.array(pbb)#[:5, :]) # prob, x, y, z, d
     # find the true label
-    for idx in xrange(kptpbb.shape[0]):
+    for idx in range(kptpbb.shape[0]):
         tefnmlst.append(srs)
         tecdxlst.append(kptpbb[idx, 1])
         tecdylst.append(kptpbb[idx, 2])
@@ -116,7 +116,7 @@ for srs, vlu in srsdct.iteritems():
             kptpbb[idx, 0] = 0
             telablst.append(0)
         trudat[srs] = kptpbb
-print(len(telablst), sum(telablst), np.sum(kptpbb[:,0]))
+print((len(telablst), sum(telablst), np.sum(kptpbb[:,0])))
 # load train data
 tedetpath = '/media/data1/wentao/CTnoddetector/training/detector/results/res18/ft96'+str(fold)+\
   '/train'+str(resep)+'/predanno'+str(traindetp)+'.csv'
@@ -129,7 +129,7 @@ cdzlst = prdcsv['coordZ'].tolist()[1:]
 prblst = prdcsv['probability'].tolist()[1:]
 # build dict first for rach seriesuid
 srsdct = {}
-for idx in xrange(len(srslst)):
+for idx in range(len(srslst)):
     vlu = [cdxlst[idx], cdylst[idx], cdzlst[idx], prblst[idx]]
     if srslst[idx] not in srsdct: srsdct[srslst[idx]] = [vlu]
     else: srsdct[srslst[idx]].append(vlu)
@@ -145,7 +145,7 @@ trcdzlst = []
 trlablst = []
 trdimlst = []
 import math
-for srs, vlu in srsdct.iteritems():
+for srs, vlu in srsdct.items():
     pbb = np.load(os.path.join(pbbpth, srs+'_pbb.npy'))
     lbb = np.load(os.path.join(pbbpth, srs+'_lbb.npy')) # list, x y z d
     # sliceim,origin,spacing,isflip = load_itk_image(os.path.join(rawpth, srslst[idx]+'.mhd'))
@@ -159,7 +159,7 @@ for srs, vlu in srsdct.iteritems():
     assert pbb.shape[0] == len(vlu)
     kptpbb = np.array(pbb)#pbb[:5, :]) # prob, x, y, z, d # :5 is the first version
     # find the true label
-    for idx in xrange(kptpbb.shape[0]):
+    for idx in range(kptpbb.shape[0]):
         trfnmlst.append(srs)
         trcdxlst.append(kptpbb[idx, 1])
         trcdylst.append(kptpbb[idx, 2])
@@ -182,7 +182,7 @@ for srs, vlu in srsdct.iteritems():
             kptpbb[idx, 0] = 0
             trlablst.append(0)
         trudat[srs] = kptpbb
-print(len(trlablst), sum(trlablst), np.sum(kptpbb[:,0]))
+print((len(trlablst), sum(trlablst), np.sum(kptpbb[:,0])))
 # save the data - later
 # run test
 import numpy as np
@@ -240,8 +240,8 @@ for fname in os.listdir(preprocesspath):
         pixvlu += np.sum(data * data)
 pixstd = np.sqrt(pixvlu / float(npix))
 # pixstd /= 255
-print(pixmean, pixstd)
-print('mean '+str(pixmean)+' std '+str(pixstd))
+print((pixmean, pixstd))
+print(('mean '+str(pixmean)+' std '+str(pixstd)))
 # Datatransforms
 print('==> Preparing data..') # Random Crop, Zero out, x z flip, scale, 
 transform_test = transforms.Compose([
@@ -305,7 +305,7 @@ for srsid, label, x, y, z, d in zip(tefnmlst, telablst, tecdxlst, tecdylst, tecd
     tefnamelst.append(data1)
     telabellst.append(int(label))
     tefeatlst.append(feat)
-print(len(telabellst), sum(telabellst))
+print((len(telabellst), sum(telabellst)))
 for srsid, label, x, y, z, d in zip(trfnmlst, trlablst, trcdxlst, trcdylst, trcdzlst, trdimlst):
     mxx = max(abs(float(x)), mxx)
     mxy = max(abs(float(y)), mxy)
@@ -337,26 +337,26 @@ for srsid, label, x, y, z, d in zip(trfnmlst, trlablst, trcdxlst, trcdylst, trcd
     trfnamelst.append(data1)
     trlabellst.append(int(label))
     trfeatlst.append(feat)
-print(len(trlabellst), sum(trlabellst))
-for idx in xrange(len(trfeatlst)):
+print((len(trlabellst), sum(trlabellst)))
+for idx in range(len(trfeatlst)):
     # trfeatlst[idx][0] /= mxx
     # trfeatlst[idx][1] /= mxy
     # trfeatlst[idx][2] /= mxz
     trfeatlst[idx][-1] /= mxd
-for idx in xrange(len(tefeatlst)):
+for idx in range(len(tefeatlst)):
     # tefeatlst[idx][0] /= mxx
     # tefeatlst[idx][1] /= mxy
     # tefeatlst[idx][2] /= mxz
     tefeatlst[idx][-1] /= mxd
 # trainset = lunanod(trfnamelst, trlabellst, trfeatlst, train=False, transform=transform_test)
 # trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=False, num_workers=30)
-print(len(tefnamelst), sum(telablst), len(trfnamelst), sum(trlablst))
+print((len(tefnamelst), sum(telablst), len(trfnamelst), sum(trlablst)))
 trainset = lunanod(preprocessallpath, trfnamelst, trlabellst, trfeatlst, train=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=30)
 testset = lunanod(preprocessallpath, tefnamelst, telabellst, tefeatlst, train=False, transform=transform_test)
 testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=30)
 checkpoint = torch.load(resmodelpath)#'./checkpoint-1-45/ckpt.t7')
-print(checkpoint.keys())
+print((list(checkpoint.keys())))
 net = DPN92_3D()
 net = checkpoint['net']
 # neptime = 0.2
@@ -370,7 +370,7 @@ def get_lr(epoch):
     return lr
 if use_cuda:
     net.cuda()
-    net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+    net = torch.nn.DataParallel(net, device_ids=list(range(torch.cuda.device_count())))
     cudnn.benchmark = False #True
 import pickle
 from sklearn.ensemble import GradientBoostingClassifier as gbt
@@ -404,7 +404,7 @@ def train(epoch):
         # print(torch.stack(targets).data.numpy().shape, torch.stack(feat).data.numpy().shape)
         # print((dfeat.data).cpu().numpy().shape)
         trainfeat[idx:idx+len(targets), :2560] = np.array((dfeat.data).cpu().numpy())
-        for i in xrange(len(targets)):
+        for i in range(len(targets)):
             trainfeat[idx+i, 2560:] = np.array((Variable(feat[i]).data).cpu().numpy())
             trainlabel[idx+i] = np.array((targets[i].data).cpu().numpy())
         idx += len(targets)
@@ -421,7 +421,7 @@ def train(epoch):
     m = gbt(max_depth=gbtdepth, random_state=0)
     m.fit(trainfeat, trainlabel)
     gbttracc = np.mean(m.predict(trainfeat) == trainlabel)
-    print('ep '+str(epoch)+' tracc '+str(correct/float(total))+' lr '+str(lr)+' gbtacc '+str(gbttracc))
+    print(('ep '+str(epoch)+' tracc '+str(correct/float(total))+' lr '+str(lr)+' gbtacc '+str(gbttracc)))
     logging.info('ep '+str(epoch)+' tracc '+str(correct/float(total))+' lr '+str(lr)+' gbtacc '+str(gbttracc))
     return m
 
@@ -450,7 +450,7 @@ def test(epoch, m):
         correct += predicted.eq(targets.data).cpu().sum()
         progress_bar(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
             % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
-        for i in xrange(len(targets)):
+        for i in range(len(targets)):
             testfeat[idx+i, 2560:] = np.array((Variable(feat[i]).data).cpu().numpy())
             testlabel[idx+i] = np.array((targets[i].data).cpu().numpy())
             dpnpred[idx+i] = np.array((Variable(predicted[i]).data).cpu().numpy())
@@ -498,7 +498,7 @@ def test(epoch, m):
     torch.save(state, savemodelpath+'ckpt'+str(epoch)+'.t7')
     pickle.dump(m, open(savemodelpath+'gbtmodel-'+str(fold)+'-'+str(epoch)+'.sav', 'wb'))
     # best_acc = acc
-    print('teacc '+str(acc)+' bestacc '+str(best_acc)+' gbttestaccgbt '+str(gbtteacc)+' bestgbt '+str(best_acc_gbt))
+    print(('teacc '+str(acc)+' bestacc '+str(best_acc)+' gbttestaccgbt '+str(gbtteacc)+' bestgbt '+str(best_acc_gbt)))
     logging.info('teacc '+str(acc)+' bestacc '+str(best_acc)+' ccgbt '+str(gbtteacc)+' bestgbt '+str(best_acc_gbt))
 
 for epoch in range(start_epoch, int(start_epoch+350*neptime)):#200):

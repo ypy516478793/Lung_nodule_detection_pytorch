@@ -1,4 +1,4 @@
-from __future__ import division
+
 import torch
 import math
 import random
@@ -26,13 +26,13 @@ def resample3d(inp,inp_space,out_space=(1,1,1)):
 
 def resample1d(inp,inp_space,out_space=1):
     #Output shape
-    print inp.size(), inp_space, out_space
+    print(inp.size(), inp_space, out_space)
     out_shape = list(np.int64(inp.size()[:-1]))+[int(np.floor(inp.size()[-1]*inp_space/out_space))] #Optional for if we expect a float_tensor
     out_shape = [int(item) for item in out_shape]
     # Get output coordinates, deltas, and t (chord distances)
     # torch.cuda.set_device(inp.get_device())
     # Output coordinates in real space
-    coords = torch.cuda.HalfTensor(range(out_shape[-1]))*out_space
+    coords = torch.cuda.HalfTensor(list(range(out_shape[-1])))*out_space
     delta = coords.fmod(inp_space).div(inp_space).repeat(out_shape[0],out_shape[1],1)
     t = torch.cuda.HalfTensor(4,out_shape[0],out_shape[1],out_shape[2]).zero_()
     t[0] = 1

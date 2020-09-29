@@ -15,7 +15,7 @@ import csv
 fid = open('annotationdetclsconvfnl_v3.csv', 'w')
 writer = csv.writer(fid)
 writer.writerow(['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'malignant'])
-for i in xrange(len(srslst)):
+for i in range(len(srslst)):
 	writer.writerow([srslst[i]+'-'+str(i), crdxlst[i], crdylst[i], crdzlst[i], dimlst[i], mlglst[i]])
 	newlst.append([srslst[i]+'-'+str(i), crdxlst[i], crdylst[i], crdzlst[i], dimlst[i], mlglst[i]])
 fid.close()
@@ -27,10 +27,10 @@ for fname in os.listdir(subset1path):
 	if fname.endswith('.mhd'):
 		testfnamelst.append(fname[:-4])
 ntest = 0
-for idx in xrange(len(newlst)):
+for idx in range(len(newlst)):
 	fname = newlst[idx][0]
 	if fname.split('-')[0] in testfnamelst: ntest +=1
-print 'ntest', ntest, 'ntrain', len(newlst)-ntest
+print('ntest', ntest, 'ntrain', len(newlst)-ntest)
 
 traindata = np.zeros((len(newlst)-ntest,))
 trainlabel = np.zeros((len(newlst)-ntest,))
@@ -38,7 +38,7 @@ testdata = np.zeros((ntest,))
 testlabel = np.zeros((ntest,))
 
 trainidx = testidx = 0
-for idx in xrange(len(newlst)):
+for idx in range(len(newlst)):
 	fname = newlst[idx][0]
 	if fname.split('-')[0] in testfnamelst:
 		testdata[testidx] = newlst[idx][-2]
@@ -71,6 +71,6 @@ plt.ylabel('Diagnosis (malignant vs. benign) accuracy (%)')
 plt.title('Diagnosis accuracy using diameter feature on fold 1')
 plt.legend()
 plt.savefig('accwrtdim.png')
-print max(teacclst)
+print(max(teacclst))
 
-print besttr, bestte
+print(besttr, bestte)
