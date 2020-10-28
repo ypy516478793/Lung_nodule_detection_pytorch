@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -10,7 +11,150 @@ from scipy.ndimage import zoom
 import warnings
 from scipy.ndimage.interpolation import rotate
 
-class DataBowl3Detector(Dataset):
+
+class luna(Dataset):
+    def __init__(self, data_dir, split_path, config, phase='train', split_comber=None):
+        assert (phase == 'train' or phase == 'val' or phase == 'test')
+        self.phase = phase
+        self.max_stride = config['max_stride']
+        self.stride = config['stride']
+        sizelim = config['sizelim'] / config['reso']
+        sizelim2 = config['sizelim2'] / config['reso']
+        sizelim3 = config['sizelim3'] / config['reso']
+        self.blacklist = config['blacklist']
+        self.isScale = config['aug_scale']
+        self.r_rand = config['r_rand_crop']
+        self.augtype = config['augtype']
+        self.pad_value = config['pad_value']
+        self.split_comber = split_comber
+        idcs = split_path  # np.load(split_path)
+        if phase != 'test':
+            idcs = [f for f in idcs if (f not in self.blacklist)]
+
+        self.filenames = [os.path.join(data_dir, '%s_clean.npy' % idx) for idx in idcs]
+        # print self.filenames
+        self.kagglenames = [f for f in self.filenames]  # if len(f.split('/')[-1].split('_')[0])>20]
+        # self.lunanames = [f for f in self.filenames if len(f.split('/')[-1].split('_')[0])<20]
+        labels = []
+
+        print(len(idcs))
+        for idx in idcs:
+            # print data_dir, idx
+            l = np.load(data_dir + idx + '_label.npy', allow_pickle='True')
+            # print l, os.path.join(data_dir, '%s_label.npy' %idx)
+            if np.all(l == 0):
+                l = np.array([])
+            labels.append(l)
+
+        self.sample_bboxes = labels
+        if self.phase != 'test':
+            self.bboxes = []
+            for i, l in enumerate(labels):
+                # print l
+                if len(l) > 0:
+                    for t in l:
+                        if t[3] > sizelim:
+                            self.bboxes.append([np.concatenate([[i], t])])
+                        if t[3] > sizelim2:
+                            self.bboxes += [[np.concatenate([[i], t])]] * 2
+                        if t[3] > sizelim3:
+                            self.bboxes += [[np.concatenate([[i], t])]] * 4
+            self.bboxes = np.concatenate(self.bboxes, axis=0)
+
+        self.crop = Crop(config)
+        self.label_mapping = LabelMapping(config, self.phase)
+
+    def __getitem__(self, idx, split=None):
+        t = time.time()
+        np.random.seed(int(str(t % 1)[2:7]))  # seed according to time
+
+        isRandomImg = False
+        if self.phase != 'test':
+            if idx >= len(self.bboxes):
+                isRandom = True
+                idx = idx % len(self.bboxes)
+                isRandomImg = np.random.randint(2)
+            else:
+                isRandom = False
+        else:
+            isRandom = False
+
+        if self.phase != 'test':
+            if not isRandomImg:
+                bbox = self.bboxes[idx]
+                filename = self.filenames[int(bbox[0])]
+                imgs = np.load(filename)
+                bboxes = self.sample_bboxes[int(bbox[0])]
+                isScale = self.augtype['scale'] and (self.phase == 'train')
+                sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
+                if self.phase == 'train' and not isRandom:
+                    sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
+                                                            ifflip=self.augtype['flip'],
+                                                            ifrotate=self.augtype['rotate'],
+                                                            ifswap=self.augtype['swap'])
+            else:
+                randimid = np.random.randint(len(self.kagglenames))
+                filename = self.kagglenames[randimid]
+                imgs = np.load(filename)
+                bboxes = self.sample_bboxes[randimid]
+                isScale = self.augtype['scale'] and (self.phase == 'train')
+                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale=False, isRand=True)
+            # print sample.shape, target.shape, bboxes.shape
+            label = self.label_mapping(sample.shape[1:], target, bboxes, filename)
+            sample = (sample.astype(np.float32) - 128) / 128
+            # if filename in self.kagglenames and self.phase=='train':
+            #    label[label==-1]=0
+            return torch.from_numpy(sample), torch.from_numpy(label), coord
+        else:
+            imgs = np.load(self.filenames[idx])
+            bboxes = self.sample_bboxes[idx]
+            nz, nh, nw = imgs.shape[1:]
+            pz = int(np.ceil(float(nz) / self.stride)) * self.stride
+            ph = int(np.ceil(float(nh) / self.stride)) * self.stride
+            pw = int(np.ceil(float(nw) / self.stride)) * self.stride
+            imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], 'constant',
+                          constant_values=self.pad_value)
+
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing='ij')
+            coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype('float32')
+            imgs, nzhw = self.split_comber.split(imgs)
+            coord2, nzhw2 = self.split_comber.split(coord,
+                                                    side_len=self.split_comber.side_len / self.stride,
+                                                    max_stride=self.split_comber.max_stride / self.stride,
+                                                    margin=self.split_comber.margin / self.stride)
+            assert np.all(nzhw == nzhw2)
+            imgs = (imgs.astype(np.float32) - 128) / 128
+            return torch.from_numpy(imgs), bboxes, torch.from_numpy(coord2), np.array(nzhw)
+
+    def __len__(self):
+        if self.phase == 'train':
+            return int(len(self.bboxes) / (1 - self.r_rand))
+        elif self.phase == 'val':
+            return len(self.bboxes)
+        else:
+            return len(self.sample_bboxes)
+
+def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
+    spacing = map(float, ([thickness] + list(spacing)))
+    spacing = np.array(list(spacing))
+    resize_factor = spacing / new_spacing
+    resize_factor = resize_factor[::-1]
+    label[:3] = np.round(label[:3] * resize_factor)
+    label[3] = label[3] * resize_factor[1]
+
+    return label
+
+def lumTrans(img):
+    lungwin = np.array([-1200.,600.])
+    newimg = (img-lungwin[0])/(lungwin[1]-lungwin[0])
+    newimg[newimg<0]=0
+    newimg[newimg>1]=1
+    newimg = (newimg*255).astype('uint8')
+    return newimg
+
+class methodistFull(Dataset):
     def __init__(self, data_dir, split_path, config, phase='train', split_comber=None):
         assert(phase == 'train' or phase == 'val' or phase == 'test')
         self.phase = phase
@@ -25,11 +169,19 @@ class DataBowl3Detector(Dataset):
         self.augtype = config['augtype']
         self.pad_value = config['pad_value']
         self.split_comber = split_comber
-        idcs = split_path # np.load(split_path)
+        pos_label_file = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/pos_labels.csv"
+        self.pos_df = pd.read_csv(pos_label_file, dtype={"date": str})
+        self.imageInfo = split_path
+        # self.imageInfo = np.load("/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/CTinfo.npz",
+        #                          allow_pickle=True)["info"]
+        s = self.imageInfo[0]["imagePath"].find("Lung_patient")
+        filelist = [i["imagePath"][s:] for i in self.imageInfo]
+        idcs = filelist # np.load(split_path)
         if phase!='test':
             idcs = [f for f in idcs if (f not in self.blacklist)]
 
-        self.filenames = [os.path.join(data_dir, '%s_clean.npy' % idx) for idx in idcs]
+        self.filenames = [i["imagePath"] for i in self.imageInfo]
+        # self.filenames = [os.path.join(data_dir, '%s_clean.npy' % idx) for idx in idcs]
         # print self.filenames
         self.kagglenames = [f for f in self.filenames]# if len(f.split('/')[-1].split('_')[0])>20]
         # self.lunanames = [f for f in self.filenames if len(f.split('/')[-1].split('_')[0])<20]
@@ -37,8 +189,12 @@ class DataBowl3Detector(Dataset):
         
         print(len(idcs))
         for idx in idcs:
+            info = self.search_info(data_dir + idx)
+            assert info != -1, "No matched info!!"
+            l = self.load_pos(info)
+
             # print data_dir, idx
-            l = np.load(data_dir+idx+'_label.npy',allow_pickle='True')
+            # l = np.load(data_dir+idx+'_label.npy',allow_pickle='True')
             # print l, os.path.join(data_dir, '%s_label.npy' %idx)
             if np.all(l==0):
                 l=np.array([])
@@ -62,6 +218,23 @@ class DataBowl3Detector(Dataset):
         self.crop = Crop(config)
         self.label_mapping = LabelMapping(config, self.phase)
 
+    def search_info(self, path):
+        for info in self.imageInfo:
+            if info["imagePath"] == path:
+                return info
+        return -1
+
+    def load_pos(self, imgInfo):
+        thickness, spacing = imgInfo["sliceThickness"], imgInfo["pixelSpacing"]
+        pstr = imgInfo["pstr"]
+        dstr = imgInfo["date"]
+        existId = (self.pos_df["patient"] == pstr) & (self.pos_df["date"] == dstr)
+        pos = self.pos_df[existId][["x", "y", "z", "d"]].values
+        pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
+        pos = pos[:, [2, 1, 0, 3]]
+
+        return pos
+
     def __getitem__(self, idx,split=None):
         t = time.time()
         np.random.seed(int(str(t%1)[2:7]))#seed according to time
@@ -81,7 +254,8 @@ class DataBowl3Detector(Dataset):
             if not isRandomImg:
                 bbox = self.bboxes[idx]
                 filename = self.filenames[int(bbox[0])]
-                imgs = np.load(filename)
+                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+                imgs = lumTrans(imgs)
                 bboxes = self.sample_bboxes[int(bbox[0])]
                 isScale = self.augtype['scale'] and (self.phase=='train')
                 sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes,isScale,isRandom)
@@ -91,7 +265,8 @@ class DataBowl3Detector(Dataset):
             else:
                 randimid = np.random.randint(len(self.kagglenames))
                 filename = self.kagglenames[randimid]
-                imgs = np.load(filename)
+                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+                imgs = lumTrans(imgs)
                 bboxes = self.sample_bboxes[randimid]
                 isScale = self.augtype['scale'] and (self.phase=='train')
                 sample, target, bboxes, coord = self.crop(imgs, [], bboxes,isScale=False,isRand=True)
@@ -102,7 +277,8 @@ class DataBowl3Detector(Dataset):
             #    label[label==-1]=0
             return torch.from_numpy(sample), torch.from_numpy(label), coord
         else:
-            imgs = np.load(self.filenames[idx])
+            imgs = np.load(self.filenames[idx], allow_pickle=True)["image"][np.newaxis, :]
+            imgs = lumTrans(imgs)
             bboxes = self.sample_bboxes[idx]
             nz, nh, nw = imgs.shape[1:]
             pz = int(np.ceil(float(nz) / self.stride)) * self.stride
@@ -130,7 +306,166 @@ class DataBowl3Detector(Dataset):
             return len(self.bboxes)
         else:
             return len(self.sample_bboxes)
-        
+
+
+def worldToVoxelCoord(worldCoord, origin, spacing):
+    stretchedVoxelCoord = np.absolute(worldCoord - origin)
+    voxelCoord = stretchedVoxelCoord / spacing
+    return voxelCoord
+
+
+class lunaRaw(Dataset):
+    def __init__(self, data_dir, split_path, config, phase='train', split_comber=None):
+        label_file = 'data/annotations.csv'
+        self.annos = np.array(pd.read_csv(label_file))
+
+        assert (phase == 'train' or phase == 'val' or phase == 'test')
+        self.phase = phase
+        self.max_stride = config['max_stride']
+        self.stride = config['stride']
+        sizelim = config['sizelim'] / config['reso']
+        sizelim2 = config['sizelim2'] / config['reso']
+        sizelim3 = config['sizelim3'] / config['reso']
+        self.blacklist = config['blacklist']
+        self.isScale = config['aug_scale']
+        self.r_rand = config['r_rand_crop']
+        self.augtype = config['augtype']
+        self.pad_value = config['pad_value']
+        self.split_comber = split_comber
+        idcs = split_path  # np.load(split_path)
+        if phase != 'test':
+            idcs = [f for f in idcs if (f not in self.blacklist)]
+        self.filenames = [os.path.join(data_dir, '%s_clean.npy' % idx) for idx in idcs]
+        # print self.filenames
+        self.kagglenames = [f for f in self.filenames]  # if len(f.split('/')[-1].split('_')[0])>20]
+        # self.lunanames = [f for f in self.filenames if len(f.split('/')[-1].split('_')[0])<20]
+        labels = []
+
+        print(len(idcs))
+        # for idx in idcs:
+        #     # print data_dir, idx
+        #     l = np.load(data_dir + idx + '_label.npy', allow_pickle='True')
+        #     # print l, os.path.join(data_dir, '%s_label.npy' %idx)
+        #     if np.all(l == 0):
+        #         l = np.array([])
+        #     labels.append(l)
+        #
+        # self.sample_bboxes = labels
+        if self.phase != 'test':
+            self.bboxes = []
+            for i, l in enumerate(labels):
+                # print l
+                if len(l) > 0:
+                    for t in l:
+                        if t[3] > sizelim:
+                            self.bboxes.append([np.concatenate([[i], t])])
+                        if t[3] > sizelim2:
+                            self.bboxes += [[np.concatenate([[i], t])]] * 2
+                        if t[3] > sizelim3:
+                            self.bboxes += [[np.concatenate([[i], t])]] * 4
+            self.bboxes = np.concatenate(self.bboxes, axis=0)
+
+        self.crop = Crop(config)
+        self.label_mapping = LabelMapping(config, self.phase)
+
+    def __getlabel__(self, idx):
+        name = idx.split("/")[-1]
+
+        sliceim, origin, spacing, isflip = load_itk_image(os.path.join(luna_data, name + '.mhd'))
+
+        this_annos = np.copy(self.annos[self.annos[:, 0] == name])
+
+        label = []
+        if len(this_annos) > 0:
+
+            for c in this_annos:
+                pos = worldToVoxelCoord(c[1:4][::-1], origin=origin, spacing=spacing)
+                if isflip:
+                    pos[1:] = Mask.shape[1:3] - pos[1:]
+                label.append(np.concatenate([pos, [c[4] / spacing[1]]]))
+
+        label = np.array(label)
+        if len(label) == 0:
+            label2 = np.array([[0, 0, 0, 0]])
+        else:
+            label2 = np.copy(label).T
+            label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
+            label2[3] = label2[3] * spacing[1] / resolution[1]
+            label2[:3] = label2[:3] - np.expand_dims(extendbox[:, 0], 1)
+            label2 = label2[:4].T
+
+    def __getitem__(self, idx, split=None):
+        t = time.time()
+        np.random.seed(int(str(t % 1)[2:7]))  # seed according to time
+
+        isRandomImg = False
+        if self.phase != 'test':
+            if idx >= len(self.bboxes):
+                isRandom = True
+                idx = idx % len(self.bboxes)
+                isRandomImg = np.random.randint(2)
+            else:
+                isRandom = False
+        else:
+            isRandom = False
+
+        if self.phase != 'test':
+            if not isRandomImg:
+                bbox = self.bboxes[idx]
+                filename = self.filenames[int(bbox[0])]
+                imgs = np.load(filename)
+                bboxes = self.sample_bboxes[int(bbox[0])]
+                isScale = self.augtype['scale'] and (self.phase == 'train')
+                sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
+                if self.phase == 'train' and not isRandom:
+                    sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
+                                                            ifflip=self.augtype['flip'],
+                                                            ifrotate=self.augtype['rotate'],
+                                                            ifswap=self.augtype['swap'])
+            else:
+                randimid = np.random.randint(len(self.kagglenames))
+                filename = self.kagglenames[randimid]
+                imgs = np.load(filename)
+                bboxes = self.sample_bboxes[randimid]
+                isScale = self.augtype['scale'] and (self.phase == 'train')
+                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale=False, isRand=True)
+            # print sample.shape, target.shape, bboxes.shape
+            label = self.label_mapping(sample.shape[1:], target, bboxes, filename)
+            sample = (sample.astype(np.float32) - 128) / 128
+            # if filename in self.kagglenames and self.phase=='train':
+            #    label[label==-1]=0
+            return torch.from_numpy(sample), torch.from_numpy(label), coord
+        else:
+            imgs = np.load(self.filenames[idx])
+            bboxes = self.sample_bboxes[idx]
+            nz, nh, nw = imgs.shape[1:]
+            pz = int(np.ceil(float(nz) / self.stride)) * self.stride
+            ph = int(np.ceil(float(nh) / self.stride)) * self.stride
+            pw = int(np.ceil(float(nw) / self.stride)) * self.stride
+            imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], 'constant',
+                          constant_values=self.pad_value)
+
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing='ij')
+            coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype('float32')
+            imgs, nzhw = self.split_comber.split(imgs)
+            coord2, nzhw2 = self.split_comber.split(coord,
+                                                    side_len=self.split_comber.side_len / self.stride,
+                                                    max_stride=self.split_comber.max_stride / self.stride,
+                                                    margin=self.split_comber.margin / self.stride)
+            assert np.all(nzhw == nzhw2)
+            imgs = (imgs.astype(np.float32) - 128) / 128
+            return torch.from_numpy(imgs), bboxes, torch.from_numpy(coord2), np.array(nzhw)
+
+    def __len__(self):
+        if self.phase == 'train':
+            return int(len(self.bboxes) / (1 - self.r_rand))
+        elif self.phase == 'val':
+            return len(self.bboxes)
+        else:
+            return len(self.sample_bboxes)
+
         
 def augment(sample, target, bboxes, coord, ifflip = True, ifrotate=True, ifswap = True):
     #                     angle1 = np.random.rand()*180
@@ -180,6 +515,15 @@ class Crop(object):
         self.stride = config['stride']
         self.pad_value = config['pad_value']
     def __call__(self, imgs, target, bboxes,isScale=True,isRand=False):
+        '''
+
+        :param imgs: shape == (1, #z, #y, #x)
+        :param target: shape == (4,) -> (z, y, x, d)
+        :param bboxes: shape == (#bbox, 4)
+        :param isScale: boolean; scale range lb -> (0.75, 1), ub -> (1, 1.25)
+        :param isRand: boolean
+        :return:
+        '''
         if isScale:
             radiusLim = [8.,120.]
             scaleLim = [0.75,1.25]
@@ -206,7 +550,7 @@ class Crop(object):
             if s>e:
                 start.append(np.random.randint(e,s))#!
             else:
-                start.append(int(target[i])-crop_size[i]/2+np.random.randint(-bound_size/2,bound_size/2))
+                start.append(int(target[i])-int(crop_size[i]/2)+np.random.randint(-bound_size/2,bound_size/2))
                 
                 
         normstart = np.array(start).astype('float32')/np.array(imgs.shape[1:])-0.5
@@ -248,16 +592,16 @@ class Crop(object):
             for i in range(len(bboxes)):
                 for j in range(4):
                     bboxes[i][j] = bboxes[i][j]*scale
-        print("The size of crop is: "+str( crop.shape))
-        if (crop.shape[1]<96 or crop.shape[2]<96 or crop.shape[3]<96):
-            crop=np.pad(crop, [(0,0), ((96-crop.shape[1])//2, (96-crop.shape[1])//2+ (crop.shape[1]%2)) ,  ((96-crop.shape[2])//2, (96-crop.shape[2])//2 + (crop.shape[2]%2)),    ((96-crop.shape[3])//2, (96-crop.shape[3])//2 + (crop.shape[3]%2) )], mode='constant', constant_values= self.pad_value)
-            
-        if (crop.shape[1]>96 or crop.shape[2]>96 or crop.shape[3]>96):
-            crop=crop[:, 0:96,0:96,0:96]  # Temporarily ttok the edges. Will have to take the center.
-            
-        print("The new size of crop is: "+str( crop.shape))
+        # print("The size of crop is: "+str( crop.shape))
+        # if (crop.shape[1]<96 or crop.shape[2]<96 or crop.shape[3]<96):
+        #     crop=np.pad(crop, [(0,0), ((96-crop.shape[1])//2, (96-crop.shape[1])//2+ (crop.shape[1]%2)) ,  ((96-crop.shape[2])//2, (96-crop.shape[2])//2 + (crop.shape[2]%2)),    ((96-crop.shape[3])//2, (96-crop.shape[3])//2 + (crop.shape[3]%2) )], mode='constant', constant_values= self.pad_value)
+        #
+        # if (crop.shape[1]>96 or crop.shape[2]>96 or crop.shape[3]>96):
+        #     crop=crop[:, 0:96,0:96,0:96]  # Temporarily ttok the edges. Will have to take the center.
+        #
+        # print("The new size of crop is: "+str( crop.shape))
         return crop, target, bboxes, coord
-    
+
 class LabelMapping(object):
     def __init__(self, config, phase):
         self.stride = np.array(config['stride'])
@@ -279,15 +623,12 @@ class LabelMapping(object):
         th_pos = self.th_pos
         
         output_size = []
-        print()
-        print("Input size is: "+ str(input_size))
         for i in range(3):
             if input_size[i] % stride != 0:
                 print(filename)
-            # assert(input_size[i] % stride == 0) 
-           
-            output_size.append(input_size[i] / stride)
-        print(filename)
+            # assert(input_size[i] % stride == 0)
+            output_size.append(input_size[i] // stride)
+
         label = -1 * np.ones(output_size + [len(anchors), 5], np.float32)
         offset = ((stride.astype('float')) - 1) / 2
         oz = np.arange(offset, offset + stride * (output_size[0] - 1) + 1, stride)
@@ -330,15 +671,15 @@ class LabelMapping(object):
         else:
             idx = random.sample(range(len(iz)), 1)[0]
             pos = [iz[idx], ih[idx], iw[idx], ia[idx]]
-        print()
-        print("The length of anchors is: "+ str(len(anchors)))
-        print()
-        print("POS is: "+ str(pos))
-        print()
-        print()
-        print("oz: "+ str(oz))
-        print("oh: "+str(oh))
-        print("ow:  "+ str(ow))
+        # print()
+        # print("The length of anchors is: "+ str(len(anchors)))
+        # print()
+        # print("POS is: "+ str(pos))
+        # print()
+        # print()
+        # print("oz: "+ str(oz))
+        # print("oh: "+str(oh))
+        # print("ow:  "+ str(ow))
         dz = (target[0] - oz[pos[0]]) / anchors[pos[3]]
         dh = (target[1] - oh[pos[1]]) / anchors[pos[3]]
         dw = (target[2] - ow[pos[2]]) / anchors[pos[3]]
@@ -413,10 +754,7 @@ def select_samples(bbox, anchor, th, oz, oh, ow):
 
 def collate(batch):
     if torch.is_tensor(batch[0]):
-        print()
-        print("PRINTING FROM COLLATE")
         return [b.unsqueeze(0) for b in batch]
-       
     elif isinstance(batch[0], np.ndarray):
         return batch
     elif isinstance(batch[0], int):

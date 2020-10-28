@@ -8,12 +8,13 @@ import numpy as np
 import detector.data as datald
 from importlib import import_module
 import shutil
+from tqdm import tqdm
 from detector.utils import *
 import pickle
 # sys.path.append('../')
 
 from detector.split_combine import SplitComb
-
+from sklearn.model_selection import train_test_split
 import torch
 from torch.nn import DataParallel
 from torch.backends import cudnn
@@ -27,16 +28,18 @@ from detector.layers import acc
 # os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 parser = argparse.ArgumentParser(description='PyTorch DataBowl3 Detector')
+parser.add_argument('--datasource', '-d', type=str, default='methoidstFull',
+                    help='luna, lunaRaw, methoidstPilot, methoidstFull, additional')
 parser.add_argument('--model', '-m', metavar='MODEL', default='res18',
                     help='model')
-parser.add_argument('--config', '-c', default='config_training', type=str)
-parser.add_argument('-j', '--workers', default=30, type=int, metavar='N',
+parser.add_argument('--config', '-c', default='config_methodistFull', type=str)
+parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=1, type=int,
+parser.add_argument('-b', '--batch-size', default=16, type=int,
                     metavar='N', help='mini-batch size (default: 16)')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate')
@@ -46,7 +49,8 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--save-freq', default='1', type=int, metavar='S',
                     help='save frequency')
-parser.add_argument('--resume', default='resmodel/res18fd9020.ckpt', type=str, metavar='PATH',
+# parser.add_argument('--resume', default='resmodel/res18fd9020.ckpt', type=str, metavar='PATH',
+parser.add_argument('--resume', default='/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20201020-113114/008.ckpt', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--save-dir', default='', type=str, metavar='SAVE',
                     help='directory to save checkpoint (default: none)')
@@ -54,12 +58,65 @@ parser.add_argument('--test', default=1, type=int, metavar='TEST',
                     help='1 do test evaluation, 0 not')
 parser.add_argument('--testthresh', default=-3, type=float,
                     help='threshod for get pbb')
-parser.add_argument('--split', default=1, type=int, metavar='SPLIT',
+parser.add_argument('--split', default=8, type=int, metavar='SPLIT',
                     help='In the test phase, split the image to 8 parts') # Split changed to 1 just to check.
-parser.add_argument('--gpu', default='7', type=str, metavar='N',
+# parser.add_argument('--gpu', default='4, 5, 6, 7', type=str, metavar='N',
+parser.add_argument('--gpu', default='0, 4', type=str, metavar='N',
                     help='use gpu')
-parser.add_argument('--n_test', default=1, type=int, metavar='N',
+parser.add_argument('--n_test', default=2, type=int, metavar='N',
                     help='number of gpu for test')
+
+def listFiles(config_training):
+    datarootdir = config_training["data_root_path"]
+    traindatadir = config_training['train_data_path']
+    valdatadir = config_training['val_data_path']
+    testdatadir = config_training['test_data_path']
+    datasource = args.datasource
+
+    if datasource == "lunaRaw":
+        trainfilelist = []
+        for folder in os.listdir(traindatadir):
+            for f in os.listdir(os.path.join(datarootdir, folder)):
+                if f.endswith('.mhd') and f[:-4] not in config_training['black_list']:
+                    trainfilelist.append(folder + '/' + f[:-4])
+        valfilelist = []
+        for folder in os.listdir(valdatadir):
+            for f in os.listdir(os.path.join(datarootdir, folder)):
+                if f.endswith('.mhd') and f[:-4] not in config_training['black_list']:
+                    valfilelist.append(folder + '/' + f[:-4])
+        testfilelist = []
+        for folder in os.listdir(testdatadir):
+            for f in os.listdir(os.path.join(datarootdir, folder)):
+                if f.endswith('.mhd') and f[:-4] not in config_training['black_list']:
+                    testfilelist.append(folder + '/' + f[:-4])
+
+    elif datasource == "luna":
+        trainfilelist = []
+        for folder in traindatadir:
+            for f in os.listdir(os.path.join(datarootdir, folder)):
+                if f.endswith('_clean.npy') and f[:-10] not in config_training['black_list']:
+                    trainfilelist.append(folder + '/' + f[:-10])
+        valfilelist = []
+        for folder in valdatadir:
+            for f in os.listdir(os.path.join(datarootdir, folder)):
+                if f.endswith('_clean.npy') and f[:-10] not in config_training['black_list']:
+                    valfilelist.append(folder + '/' + f[:-10])
+        testfilelist = []
+        for folder in testdatadir:
+            for f in os.listdir(os.path.join(datarootdir, folder)):
+                if f.endswith('_clean.npy') and f[:-10] not in config_training['black_list']:
+                    testfilelist.append(folder + '/' + f[:-10])
+
+    elif datasource == "methoidstFull":
+        imageInfo = np.load("/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/CTinfo.npz",
+                            allow_pickle=True)["info"]
+        # s = imageInfo[0]["imagePath"].find("Lung_patient")
+        # filelist = [i["imagePath"][s:] for i in imageInfo]
+        trainfilelist, valfilelist = train_test_split(imageInfo, test_size=0.4, random_state=42)
+        valfilelist, testfilelist = train_test_split(valfilelist, test_size=0.5, random_state=42)
+
+    return trainfilelist, valfilelist, testfilelist
+
 
 def main():
     global args
@@ -68,14 +125,15 @@ def main():
     config_training = config_training.config
     # from config_training import config as config_training
     torch.manual_seed(0)
-    torch.cuda.set_device(0)
+    n_gpu = setgpu(args.gpu)
+    args.n_gpu = n_gpu
+    # torch.cuda.set_device(0)
 
     model = import_module(args.model)
     config, net, loss, get_pbb = model.get_model()
     start_epoch = args.start_epoch
     save_dir = args.save_dir
-    
-#    args.resume = True
+
     if args.resume:
         checkpoint = torch.load(args.resume)
         # if start_epoch == 0:
@@ -102,41 +160,52 @@ def main():
         pyfiles = [f for f in os.listdir('./') if f.endswith('.py')]
         for f in pyfiles:
             shutil.copy(f,os.path.join(save_dir,f))
-    n_gpu = setgpu(args.gpu)
-    args.n_gpu = n_gpu
     net = net.cuda()
     loss = loss.cuda()
     cudnn.benchmark = False                     #True
     net = DataParallel(net)
-    traindatadir = config_training['train_preprocess_result_path']
-    valdatadir = config_training['val_preprocess_result_path']
-    testdatadir = config_training['test_preprocess_result_path']
-    trainfilelist = []
-   # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_train_list.pkl",'rb') as f:
-    #    trainfilelist=pickle.load(f)
-    with open("../methodist_patient_names/methodist_train.pkl",'rb') as f:
+    datarootdir = config_training["data_root_path"]
 
-        trainfilelist=pickle.load(f)
-        
-    valfilelist = []
-    #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_val_list.pkl",'rb') as f:
-     #   valfilelist=pickle.load(f)
-    with open ("../methodist_patient_names/methodist_val.pkl",'rb') as f:
-        valfilelist=pickle.load(f)
-    testfilelist = []
-    #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_test_list.pkl",'rb') as f:
-     #   testfilelist=pickle.load(f)
-    with open("../methodist_patient_names/methodist_test.pkl",'rb') as f:
-        testfilelist=pickle.load(f)
-    testfilelist=['download20180608140526download20180608140500001_1_3_12_30000018060618494775800001943']
+
+    trainfilelist, valfilelist, testfilelist = listFiles(config_training)
+
+   #  trainfilelist = []
+   # # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_train_list.pkl",'rb') as f:
+   #  #    trainfilelist=pickle.load(f)
+   #  with open("../methodist_patient_names/methodist_train.pkl",'rb') as f:
+   #
+   #      trainfilelist=pickle.load(f)
+   #
+   #  valfilelist = []
+   #  #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_val_list.pkl",'rb') as f:
+   #   #   valfilelist=pickle.load(f)
+   #  with open ("../methodist_patient_names/methodist_val.pkl",'rb') as f:
+   #      valfilelist=pickle.load(f)
+   #  testfilelist = []
+   #  #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_test_list.pkl",'rb') as f:
+   #   #   testfilelist=pickle.load(f)
+   #  with open("../methodist_patient_names/methodist_test.pkl",'rb') as f:
+   #      testfilelist=pickle.load(f)
+   #  # testfilelist=['download20180608140526download20180608140500001_1_3_12_30000018060618494775800001943']
+
+    # trainfilelist = [i.split("_")[0] for i in os.listdir(traindatadir) if i.endswith("_clean.npy")]
+    # valfilelist = [i.split("_")[0] for i in os.listdir(valdatadir) if i.endswith("_clean.npy")]
+    # testfilelist = [i.split("_")[0] for i in os.listdir(testdatadir) if i.endswith("_clean.npy")]
+
+    if args.datasource == "lunaRaw":
+        Dataset = datald.lunaRaw
+    elif args.datasource == "luna":
+        Dataset = datald.luna
+    elif args.datasource == "methoidstFull":
+        Dataset = datald.methodistFull
+
     if args.test == 1:
 
         margin = 32
         sidelen = 144
-        import data
         split_comber = SplitComb(sidelen,config['max_stride'],config['stride'],margin,config['pad_value'])
-        dataset = data.DataBowl3Detector(
-            testdatadir,
+        dataset = Dataset(
+            datarootdir,
             testfilelist,
             config,
             phase='test',
@@ -146,21 +215,20 @@ def main():
             batch_size = 1,
             shuffle = False,
             num_workers = 0,
-            collate_fn = data.collate,
+            collate_fn = datald.collate,
             pin_memory=False)
 
-        for i, (data, target, coord, nzhw) in enumerate(test_loader): # check data consistency
-            if i >= len(testfilelist)/args.batch_size:
-                break
+        # for i, (data, target, coord, nzhw) in enumerate(test_loader): # check data consistency
+        #     if i >= len(testfilelist)/args.batch_size:
+        #         break
         
         test(test_loader, net, get_pbb, save_dir,config)
 
         return
     #net = DataParallel(net)
-    from detector import data
     print(len(trainfilelist))
-    dataset = data.DataBowl3Detector(
-        traindatadir,
+    dataset = Dataset(
+        datarootdir,
         trainfilelist,
         config,
         phase = 'train')
@@ -168,11 +236,11 @@ def main():
         dataset,
         batch_size = args.batch_size,
         shuffle = True,
-        num_workers = 0,
+        num_workers = args.workers,
         pin_memory=True)
 
-    dataset = data.DataBowl3Detector(
-        valdatadir,
+    dataset = Dataset(
+        datarootdir,
         valfilelist,
         config,
         phase = 'val')
@@ -180,16 +248,16 @@ def main():
         dataset,
         batch_size = args.batch_size,
         shuffle = False,
-        num_workers = 0,
+        num_workers = args.workers,
         pin_memory=True)
 
-    for i, (data, target, coord) in enumerate(train_loader): # check data consistency
-        if i >= len(trainfilelist)/args.batch_size:
-            break
-
-    for i, (data, target, coord) in enumerate(val_loader): # check data consistency
-        if i >= len(valfilelist)/args.batch_size:
-            break
+    # for i, (data, target, coord) in enumerate(train_loader): # check data consistency
+    #     if i >= len(trainfilelist)/args.batch_size:
+    #         break
+    #
+    # for i, (data, target, coord) in enumerate(val_loader): # check data consistency
+    #     if i >= len(valfilelist)/args.batch_size:
+    #         break
 
     optimizer = torch.optim.SGD(
         net.parameters(),
@@ -210,12 +278,13 @@ def main():
     
 
     for epoch in range(start_epoch, args.epochs + 1):
+        print("Start epoch {:d}!".format(epoch))
         train(train_loader, net, loss, epoch, optimizer, get_lr, args.save_freq, save_dir)
         validate(val_loader, net, loss)
 
 def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir):
     start_time = time.time()
-    
+    saved_model_list = []
     net.train()
     lr = get_lr(epoch)
     for param_group in optimizer.param_groups:
@@ -223,7 +292,7 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
 
     metrics = []
 
-    for i, (data, target, coord) in enumerate(data_loader):
+    for i, (data, target, coord) in enumerate(tqdm(data_loader)):
         data = Variable(torch.FloatTensor(data).cuda(async = True))
         target = Variable(torch.FloatTensor(target).cuda(async = True))
         coord = Variable(torch.FloatTensor(coord).cuda(async = True))
@@ -241,13 +310,26 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
         state_dict = net.module.state_dict()
         for key in state_dict.keys():
             state_dict[key] = state_dict[key].cpu()
-            
+
+
+        # dir_checkpoint = os.path.join(save_folder, "checkpoints/")
+        # if average_training_loss < best_loss:
+        #     pt_name = dir_checkpoint + "CP_epoch{}.pth".format(epoch + 1)
+        #     torch.save(net.state_dict(), pt_name)
+        #     print("Checkpoint {} saved !".format(epoch + 1))
+        #     best_loss = average_training_loss
+        #     saved_model_list.append(pt_name)
+        #     if len(saved_model_list) > max_to_keep:
+        #         delete_model = saved_model_list.pop(0)
+        #         os.remove(delete_model)
+
+        checkpoint = os.path.join(save_dir, '%03d.ckpt' % epoch)
         torch.save({
             'epoch': epoch,
             'save_dir': save_dir,
             'state_dict': state_dict,
             'args': args},
-            os.path.join(save_dir, '%03d.ckpt' % epoch))
+            checkpoint)
 
     end_time = time.time()
 

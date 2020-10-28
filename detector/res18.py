@@ -21,6 +21,7 @@ config['sizelim3'] = 20 #40
 config['aug_scale'] = True
 config['r_rand_crop'] = 0.3
 config['pad_value'] = 170
+# config['augtype'] = {'flip':True,'swap':False,'scale':True,'rotate':False}
 config['augtype'] = {'flip':True,'swap':False,'scale':True,'rotate':False}
 
 
