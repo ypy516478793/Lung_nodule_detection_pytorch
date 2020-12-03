@@ -6,7 +6,7 @@ import os
 import time
 import collections
 import random
-from layers import iou
+# from layers import iou
 from scipy.ndimage import zoom
 import warnings
 from scipy.ndimage.interpolation import rotate
@@ -167,7 +167,7 @@ class methodistFull(Dataset):
         self.isScale = config['aug_scale']
         self.r_rand = config['r_rand_crop']
         self.augtype = config['augtype']
-        self.pad_value = config['pad_value']
+        self.pad_value = config['pad_value']   # may need to change to 0
         self.split_comber = split_comber
         pos_label_file = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/pos_labels.csv"
         self.pos_df = pd.read_csv(pos_label_file, dtype={"date": str})
@@ -514,6 +514,13 @@ class Crop(object):
         self.bound_size = config['bound_size']
         self.stride = config['stride']
         self.pad_value = config['pad_value']
+    # def __init__(self, config):
+    #     # from dataLoader.methodistFull import IncidentalConfig
+    #     # config = IncidentalConfig()
+    #     self.crop_size = config.CROP_SIZE
+    #     self.bound_size = config.BOUND_SIZE
+    #     self.stride = config.STRIDE
+    #     self.pad_value = config.PAD_VALUE
     def __call__(self, imgs, target, bboxes,isScale=True,isRand=False):
         '''
 
@@ -613,6 +620,18 @@ class LabelMapping(object):
             self.th_pos = config['th_pos_train']
         elif phase == 'val':
             self.th_pos = config['th_pos_val']
+    # def __init__(self, config, phase):
+        # from dataLoader.methodistFull import IncidentalConfig
+        # config = IncidentalConfig()
+        # self.stride = np.array(config.STRIDE)
+        # self.num_neg = int(config.NUM_NEG)
+        # self.th_neg = config.TH_NEG
+        # self.anchors = np.asarray(config.ANCHORS)
+        # self.phase = phase
+        # if phase == 'train':
+        #     self.th_pos = config.TH_POS_TRAIN
+        # elif phase == 'val':
+        #     self.th_pos = config.TH_POS_VAL
 
             
     def __call__(self, input_size, target, bboxes, filename):
@@ -762,4 +781,13 @@ def collate(batch):
     elif isinstance(batch[0], collections.Iterable):
         transposed = zip(*batch)
         return [collate(samples) for samples in transposed]
+
+
+# if __name__ == '__main__':
+    # Dataset = luna(
+    #     datarootdir,
+    #     trainfilelist,
+    #     config,
+    #     phase='train')
+    # )
 

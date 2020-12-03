@@ -19,7 +19,7 @@ def getFreeId():
     deviceCount = pynvml.nvmlDeviceGetCount()
     available = []
     for i in range(deviceCount):
-        if getFreeRatio(i)<70:
+        if getFreeRatio(i)>70:
             available.append(i)
     gpus = ''
     for g in available:
@@ -29,15 +29,16 @@ def getFreeId():
 
 def setgpu(gpuinput):
     freeids = getFreeId()
-    if gpuinput=='all':
+    if gpuinput=="all":
         gpus = freeids
     else:
-        gpus = gpuinput
-#        if any([g not in freeids for g in gpus.split(',')]):
-#            raise ValueError('gpu'+g+'is being used')
-    print('using gpu '+gpus)
-    os.environ['CUDA_VISIBLE_DEVICES']=gpus
-    return len(gpus.split(','))
+        gpus = gpuinput.replace(" ", "")
+        gpu_in_use = [g for g in gpus.split(",") if g not in freeids]
+        if len(gpu_in_use) > 0:
+            raise ValueError("gpu{:s} is being used! Availabel gpus: gpu {:s}".format(",".join(gpu_in_use), freeids))
+    print("using gpu "+gpus)
+    os.environ["CUDA_VISIBLE_DEVICES"]=gpus
+    return len(gpus.split(","))
 
 class Logger(object):
     def __init__(self,logfile):
@@ -630,6 +631,17 @@ def getrecallwrtdetp(path='/media/data1/wentao/tianchi/CTnoddetector/training/de
     plt.ylabel('Recall')
     plt.title('Recall w.r.t. Threshold (after nms)')
     plt.savefig('recallthreshafternms.png')
+
+def canvas2array(fig):
+    """
+    Save the plot to numpy array
+    Run plt.show() or plt.savefig() or fig.canvas.draw() before this function
+    :param fig: figure object created by e.g. fig, ax = plt.subplots(1)
+    :return: numpy array of the plot
+    """
+    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    return data
 
 if __name__ == '__main__':
     # path = '/media/data1/wentao/CTnoddetector/training/detector/results/res18/ft96/'

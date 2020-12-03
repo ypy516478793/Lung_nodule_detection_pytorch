@@ -30,8 +30,7 @@ from detector.layers import acc
 parser = argparse.ArgumentParser(description='PyTorch DataBowl3 Detector')
 parser.add_argument('--datasource', '-d', type=str, default='methoidstFull',
                     help='luna, lunaRaw, methoidstPilot, methoidstFull, additional')
-parser.add_argument('--model', '-m', metavar='MODEL', default='res18',
-                    help='model')
+parser.add_argument('--model', '-m', metavar='MODEL', default='res18', help='model')
 parser.add_argument('--config', '-c', default='config_methodistFull', type=str)
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
@@ -39,7 +38,7 @@ parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=16, type=int,
+parser.add_argument('-b', '--batch-size', default=2, type=int,
                     metavar='N', help='mini-batch size (default: 16)')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate')
@@ -50,18 +49,18 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
 parser.add_argument('--save-freq', default='1', type=int, metavar='S',
                     help='save frequency')
 # parser.add_argument('--resume', default='resmodel/res18fd9020.ckpt', type=str, metavar='PATH',
-parser.add_argument('--resume', default='/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20201020-113114/008.ckpt', type=str, metavar='PATH',
+parser.add_argument('--resume', default='/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20201020-113114/030.ckpt', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--save-dir', default='', type=str, metavar='SAVE',
                     help='directory to save checkpoint (default: none)')
-parser.add_argument('--test', default=1, type=int, metavar='TEST',
+parser.add_argument('--test', default=0, type=int, metavar='TEST',
                     help='1 do test evaluation, 0 not')
 parser.add_argument('--testthresh', default=-3, type=float,
                     help='threshod for get pbb')
 parser.add_argument('--split', default=8, type=int, metavar='SPLIT',
                     help='In the test phase, split the image to 8 parts') # Split changed to 1 just to check.
 # parser.add_argument('--gpu', default='4, 5, 6, 7', type=str, metavar='N',
-parser.add_argument('--gpu', default='0, 4', type=str, metavar='N',
+parser.add_argument('--gpu', default='6, 7', type=str, metavar='N',
                     help='use gpu')
 parser.add_argument('--n_test', default=2, type=int, metavar='N',
                     help='number of gpu for test')
@@ -143,6 +142,7 @@ def main():
         # else:
         #     save_dir = os.path.join('results',save_dir)
         net.load_state_dict(checkpoint['state_dict'])
+        print("Load successfully from " + args.resume)
     # else:
     if start_epoch == 0:
         start_epoch = 1
@@ -158,8 +158,8 @@ def main():
     if args.test!=1:
         sys.stdout = Logger(logfile)
         pyfiles = [f for f in os.listdir('./') if f.endswith('.py')]
-        for f in pyfiles:
-            shutil.copy(f,os.path.join(save_dir,f))
+        # for f in pyfiles:
+        #     shutil.copy(f,os.path.join(save_dir,f))
     net = net.cuda()
     loss = loss.cuda()
     cudnn.benchmark = False                     #True
@@ -485,33 +485,31 @@ def test(data_loader, net, get_pbb, save_dir, config):
     np.save(os.path.join(save_dir, 'namelist.npy'), namelist)
     end_time = time.time()
     print('elapsed time is %3.2f seconds' % (end_time - start_time))
-    print
-    print
 
-def singletest(data,net,config,splitfun,combinefun,n_per_run,margin = 64,isfeat=False):
-    z, h, w = data.size(2), data.size(3), data.size(4)
-    print(data.size())
-    data = splitfun(data,config['max_stride'],margin)
-    data = Variable(data.cuda(async= True), volatile = True,requires_grad=False)
-    splitlist = range(0,args.split+1,n_per_run)
-    outputlist = []
-    featurelist = []
-    for i in range(len(splitlist)-1):
-        if isfeat:
-            output,feature = net(data[splitlist[i]:splitlist[i+1]])
-            featurelist.append(feature)
-        else:
-            output = net(data[splitlist[i]:splitlist[i+1]])
-        output = output.data.cpu().numpy()
-        outputlist.append(output)
-        
-    output = np.concatenate(outputlist,0)
-    output = combinefun(output, z / config['stride'], h / config['stride'], w / config['stride'])
-    if isfeat:
-        feature = np.concatenate(featurelist,0).transpose([0,2,3,4,1])
-        feature = combinefun(feature, z / config['stride'], h / config['stride'], w / config['stride'])
-        return output,feature
-    else:
-        return output
+# def singletest(data,net,config,splitfun,combinefun,n_per_run,margin = 64,isfeat=False):
+#     z, h, w = data.size(2), data.size(3), data.size(4)
+#     print(data.size())
+#     data = splitfun(data,config['max_stride'],margin)
+#     data = Variable(data.cuda(async= True), volatile = True,requires_grad=False)
+#     splitlist = range(0,args.split+1,n_per_run)
+#     outputlist = []
+#     featurelist = []
+#     for i in range(len(splitlist)-1):
+#         if isfeat:
+#             output,feature = net(data[splitlist[i]:splitlist[i+1]])
+#             featurelist.append(feature)
+#         else:
+#             output = net(data[splitlist[i]:splitlist[i+1]])
+#         output = output.data.cpu().numpy()
+#         outputlist.append(output)
+#
+#     output = np.concatenate(outputlist,0)
+#     output = combinefun(output, z / config['stride'], h / config['stride'], w / config['stride'])
+#     if isfeat:
+#         feature = np.concatenate(featurelist,0).transpose([0,2,3,4,1])
+#         feature = combinefun(feature, z / config['stride'], h / config['stride'], w / config['stride'])
+#         return output,feature
+#     else:
+#         return output
 if __name__ == '__main__':
     main()
