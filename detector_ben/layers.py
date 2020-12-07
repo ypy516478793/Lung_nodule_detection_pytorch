@@ -265,7 +265,7 @@ def nms(output, nms_th):
         bbox = output[i]
         flag = 1
         for j in range(len(bboxes)):
-            if iou(bbox[1:5], bboxes[j][1:5]) >= 0.8:
+            if iou(bbox[1:5], bboxes[j][1:5]) >= nms_th:
                 flag = -1
                 break
         if flag == 1:
@@ -291,6 +291,16 @@ def iou(box0, box1):
     intersection = overlap[0] * overlap[1] * overlap[2]
     union = box0[3] * box0[3] * box0[3] + box1[3] * box1[3] * box1[3] - intersection
     return intersection / union
+
+def top_pbb(pbb, n, config):
+    conf_th = config.CONF_TH
+    nms_th = config.NMS_TH
+    pbb = pbb[pbb[:, 0] >= conf_th]
+    pbb = nms(pbb, nms_th)
+
+    print("")
+
+    return pbb
 
 
 def acc(pbb, lbb, conf_th, nms_th, detect_th):

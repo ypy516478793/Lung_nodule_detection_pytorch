@@ -101,7 +101,7 @@ class SplitComb():
                     sw = int(iw * side_len)
                     ew = int((iw + 1) * side_len)
 
-                    print("THE SHAPE OF SPLITS FROM COMBINE IS: " + str(np.array(splits).shape))
+                    # print("THE SHAPE OF SPLITS FROM COMBINE IS: " + str(np.array(splits).shape))
                     # Margin is 8; margin+sidelen is 44; sidelen is 36.
                     split = splits[idx][int(margin):int(margin + side_len), int(margin):int(margin + side_len),
                             int(margin):int(margin + side_len)]

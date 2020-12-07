@@ -34,8 +34,8 @@ def add_bbox(ax, images, pred, label=None):
     if len(images.shape) == 2:
         ax.imshow(images, cmap="gray")
         if label is not None and pred is not None:
-            xp, yp, dp = pred
-            xl, yl, dl = label
+            yp, xp, dp = pred
+            yl, xl, dl = label
             rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
                                            facecolor='none')
             ax.add_patch(rect_label)
@@ -43,12 +43,12 @@ def add_bbox(ax, images, pred, label=None):
                                           facecolor='none')
             ax.add_patch(rect_pred)
         elif label is not None:
-            xl, yl, dl = label
+            yl, xl, dl = label
             rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
                                            facecolor='none')
             ax.add_patch(rect_label)
         elif pred is not None:
-            xp, yp, dp = pred
+            yp, xp, dp = pred
             rect_pred = patches.Rectangle((xp - dp / 2, yp - dp / 2), dp, dp, linewidth=1, edgecolor='r',
                                           facecolor='none')
             ax.add_patch(rect_pred)
@@ -57,8 +57,8 @@ def add_bbox(ax, images, pred, label=None):
     else:
         assert len(images.shape) == 3
         if label is not None and pred is not None:
-            xp, yp, zp, dp = pred
-            xl, yl, zl, dl = label
+            zp, yp, xp, dp = pred
+            zl, yl, xl, dl = label
             ax.imshow(images[int(zl)], cmap="gray")
             rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
                                            facecolor='none')
@@ -68,13 +68,13 @@ def add_bbox(ax, images, pred, label=None):
                                               facecolor='none')
                 ax.add_patch(rect_pred)
         elif label is not None:
-            xl, yl, zl, dl = label
+            zl, yl, xl, dl = label
             ax.imshow(images[int(zl)], cmap="gray")
             rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
                                            facecolor='none')
             ax.add_patch(rect_label)
         elif pred is not None:
-            xp, yp, zp, dp = pred
+            zp, yp, xp, dp = pred
             ax.imshow(images[int(zp)], cmap="gray")
             rect_pred = patches.Rectangle((xp - dp / 2, yp - dp / 2), dp, dp, linewidth=1, edgecolor='r',
                                           facecolor='none')
@@ -86,7 +86,7 @@ def plot_bbox(savedir, images, pred, label=None, show=True):
     '''
     plot center image with bbox
     :param images: CT scan, shape: (num_slices, h, w) or (h, w)
-    :param label: coordinates & diameter (all in pixel space): (x, y, z, d) or (x, y, d)
+    :param label: coordinates & diameter (all in pixel space): (z, y, x, d) or (y, x, d)
     :param savedir: save directory
     :return: None
     '''

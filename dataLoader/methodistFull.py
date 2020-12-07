@@ -33,10 +33,22 @@ class IncidentalConfig(object):
     AUG_SCALE = True
     R_RAND_CROP = 0.3
     PAD_VALUE = 0   # previous 170
-    AUGTYPE = {'flip': True, 'swap': False, 'scale': True, 'rotate': False}
+    AUGTYPE = {"flip": True, "swap": False, "scale": True, "rotate": False}
+
+    CONF_TH = 4
+    NMS_TH = 0.3
+    DETECT_TH = 0.5
 
     SIDE_LEN = 144
     MARGIN = 32
+
+    def display(self):
+        """Display Configuration values."""
+        print("\nConfigurations:")
+        for a in dir(self):
+            if not a.startswith("__") and not callable(getattr(self, a)):
+                print("{:30} {}".format(a, getattr(self, a)))
+        print("\n")
 
 
 def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
@@ -53,7 +65,7 @@ def lumTrans(img):
     newimg = (img-lungwin[0])/(lungwin[1]-lungwin[0])
     newimg[newimg<0]=0
     newimg[newimg>1]=1
-    newimg = (newimg*255).astype('uint8')
+    newimg = (newimg*255).astype("uint8")
     return newimg
 
 
@@ -65,7 +77,7 @@ def augment(sample, target, bboxes, coord, ifflip=True, ifrotate=True, ifswap=Tr
         while not validrot:
             newtarget = np.copy(target)
             angle1 = np.random.rand() * 180
-            size = np.array(sample.shape[2:4]).astype('float')
+            size = np.array(sample.shape[2:4]).astype("float")
             rotmat = np.array([[np.cos(angle1 / 180 * np.pi), -np.sin(angle1 / 180 * np.pi)],
                                [np.sin(angle1 / 180 * np.pi), np.cos(angle1 / 180 * np.pi)]])
             newtarget[1:3] = np.dot(rotmat, target[1:3] - size / 2) + size / 2
@@ -100,20 +112,20 @@ def augment(sample, target, bboxes, coord, ifflip=True, ifrotate=True, ifswap=Tr
     return sample, target, bboxes, coord
 
 class MethodistFull(Dataset):
-    def __init__(self, config, subset='train'):
-        assert (subset == 'train' or subset == 'val' or subset == 'test')
+    def __init__(self, config, subset="train"):
+        assert (subset == "train" or subset == "val" or subset == "test" or subset == "inference")
         self.config = config
         self.subset = subset
         # self.max_stride = IncidentalConfig.MAX_STRIDE
-        # self.stride = config['stride']
-        # sizelim = config['sizelim'] / config['reso']
-        # sizelim2 = config['sizelim2'] / config['reso']
-        # sizelim3 = config['sizelim3'] / config['reso']
-        # self.blacklist = config['blacklist']
-        # self.isScale = config['aug_scale']
-        # self.r_rand = config['r_rand_crop']
-        # self.augtype = config['augtype']
-        # self.pad_value = config['pad_value']  # may need to change to 0
+        # self.stride = config["stride"]
+        # sizelim = config["sizelim"] / config["reso"]
+        # sizelim2 = config["sizelim2"] / config["reso"]
+        # sizelim3 = config["sizelim3"] / config["reso"]
+        # self.blacklist = config["blacklist"]
+        # self.isScale = config["aug_scale"]
+        # self.r_rand = config["r_rand_crop"]
+        # self.augtype = config["augtype"]
+        # self.pad_value = config["pad_value"]  # may need to change to 0
         self.data_dir = data_dir = config.DATA_DIR
         info_file = config.INFO_FILE
         pos_label_file = config.POS_LABEL_FILE
@@ -131,11 +143,25 @@ class MethodistFull(Dataset):
         self.load_subset(subset)
 
     def load_subset(self, subset):
+        # if subset == "inference":
+        #     infos = self.imageInfo
+        # else:
+        #     ## train/val/test split
+        #     trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
+        #     valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
+        #
+        #     assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
+        #     if subset == "train":
+        #         infos = trainInfo
+        #     elif subset == "val":
+        #         infos = valInfo
+        #     else:
+        #         infos = testInfo
+
         ## train/val/test split
         trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
         valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
 
-        assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
         if subset == "train":
             infos = trainInfo
         elif subset == "val":
@@ -146,15 +172,15 @@ class MethodistFull(Dataset):
         ## Get the file list for current subset
         start = infos[0]["imagePath"].find("Lung_patient")
         fileList = [i["imagePath"][start:] for i in infos]
-        if subset != 'test':
+        if subset != "test":
             fileList = [f for f in fileList if (f not in self.blacklist)]
         self.filenames = [os.path.join(self.data_dir, f) for f in fileList]
 
         # self.filenames = [i["imagePath"] for i in self.imageInfo]
-        # self.filenames = [os.path.join(data_dir, '%s_clean.npy' % idx) for idx in idcs]
+        # self.filenames = [os.path.join(data_dir, "%s_clean.npy" % idx) for idx in idcs]
         # print self.filenames
-        # self.kagglenames = [f for f in self.filenames]  # if len(f.split('/')[-1].split('_')[0])>20]
-        # self.lunanames = [f for f in self.filenames if len(f.split('/')[-1].split('_')[0])<20]
+        # self.kagglenames = [f for f in self.filenames]  # if len(f.split("/")[-1].split("_")[0])>20]
+        # self.lunanames = [f for f in self.filenames if len(f.split("/")[-1].split("_")[0])<20]
 
         ## Load the label for current subset
         labels = []
@@ -164,15 +190,15 @@ class MethodistFull(Dataset):
             assert info != -1, "No matched info!!"
             l = self.load_pos(info)
             # print data_dir, idx
-            # l = np.load(data_dir+idx+'_label.npy',allow_pickle='True')
-            # print l, os.path.join(data_dir, '%s_label.npy' %idx)
+            # l = np.load(data_dir+idx+"_label.npy",allow_pickle="True")
+            # print l, os.path.join(data_dir, "%s_label.npy" %idx)
             if np.all(l == 0):
                 l = np.array([])
             labels.append(l)
 
         ## Duplicate samples based on the nodule size
         self.sample_bboxes = labels
-        if self.subset != 'test':
+        if self.subset != "test":
             self.bboxes = []
             for i, l in enumerate(labels):
                 if len(l) > 0:
@@ -207,7 +233,7 @@ class MethodistFull(Dataset):
         np.random.seed(int(str(t % 1)[2:7]))  # seed according to time
 
         isRandomImg = False
-        if self.subset != 'test':
+        if self.subset != "test":
             if idx >= len(self.bboxes):
                 isRandom = True
                 idx = idx % len(self.bboxes)
@@ -217,50 +243,21 @@ class MethodistFull(Dataset):
         else:
             isRandom = False
 
-        if self.subset != 'test':
-            if not isRandomImg:
-                bbox = self.bboxes[idx]
-                filename = self.filenames[int(bbox[0])]
-                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
-                imgs = lumTrans(imgs)
-                bboxes = self.sample_bboxes[int(bbox[0])]
-                # isScale = self.augtype['scale'] and (self.subset == 'train')
-                isScale = False
-                sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
-                if self.subset == 'train' and not isRandom:
-                    sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
-                                                            ifflip=self.augtype['flip'],
-                                                            ifrotate=self.augtype['rotate'],
-                                                            ifswap=self.augtype['swap'])
-            else:
-                randimid = np.random.randint(len(self.kagglenames))
-                filename = self.kagglenames[randimid]
-                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
-                imgs = lumTrans(imgs)
-                bboxes = self.sample_bboxes[randimid]
-                isScale = self.augtype['scale'] and (self.subset == 'train')
-                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale=False, isRand=True)
-            # print sample.shape, target.shape, bboxes.shape
-            label = self.label_mapping(sample.shape[1:], target, bboxes, filename)
-            sample = (sample.astype(np.float32) - 128) / 128
-            # if filename in self.kagglenames and self.subset=='train':
-            #    label[label==-1]=0
-            return torch.from_numpy(sample), torch.from_numpy(label), coord, target
-        else:
+        if self.subset == "inference":
             imgs = np.load(self.filenames[idx], allow_pickle=True)["image"][np.newaxis, :]
             imgs = lumTrans(imgs)
-            bboxes = self.sample_bboxes[idx]
+            ori_imgs = np.copy(imgs)
             nz, nh, nw = imgs.shape[1:]
             pz = int(np.ceil(float(nz) / self.stride)) * self.stride
             ph = int(np.ceil(float(nh) / self.stride)) * self.stride
             pw = int(np.ceil(float(nw) / self.stride)) * self.stride
-            imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], 'constant',
+            imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], "constant",
                           constant_values=self.pad_value)
 
             xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
                                      np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing='ij')
-            coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype('float32')
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing="ij")
+            coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype("float32")
             imgs, nzhw = self.split_comber.split(imgs)
             coord2, nzhw2 = self.split_comber.split(coord,
                                                     side_len=self.split_comber.side_len / self.stride,
@@ -268,18 +265,72 @@ class MethodistFull(Dataset):
                                                     margin=self.split_comber.margin / self.stride)
             assert np.all(nzhw == nzhw2)
             imgs = (imgs.astype(np.float32) - 128) / 128
-            return torch.from_numpy(imgs), bboxes, torch.from_numpy(coord2), np.array(nzhw)
+            return torch.from_numpy(imgs), None, torch.from_numpy(coord2), np.array(nzhw), ori_imgs
+
+        if self.subset != "test":
+            if not isRandomImg:
+                bbox = self.bboxes[idx]
+                filename = self.filenames[int(bbox[0])]
+                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+                imgs = lumTrans(imgs)
+                bboxes = self.sample_bboxes[int(bbox[0])]
+                # isScale = self.augtype["scale"] and (self.subset == "train")
+                isScale = False
+                sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
+                if self.subset == "train" and not isRandom:
+                    sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
+                                                            ifflip=self.augtype["flip"],
+                                                            ifrotate=self.augtype["rotate"],
+                                                            ifswap=self.augtype["swap"])
+            else:
+                randimid = np.random.randint(len(self.kagglenames))
+                filename = self.kagglenames[randimid]
+                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+                imgs = lumTrans(imgs)
+                bboxes = self.sample_bboxes[randimid]
+                isScale = self.augtype["scale"] and (self.subset == "train")
+                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale=False, isRand=True)
+            # print sample.shape, target.shape, bboxes.shape
+            label = self.label_mapping(sample.shape[1:], target, bboxes, filename)
+            sample = (sample.astype(np.float32) - 128) / 128
+            # if filename in self.kagglenames and self.subset=="train":
+            #    label[label==-1]=0
+            return torch.from_numpy(sample), torch.from_numpy(label), coord, target
+        else:
+            imgs = np.load(self.filenames[idx], allow_pickle=True)["image"][np.newaxis, :]
+            imgs = lumTrans(imgs)
+            ori_imgs = np.copy(imgs)
+            bboxes = self.sample_bboxes[idx]
+            nz, nh, nw = imgs.shape[1:]
+            pz = int(np.ceil(float(nz) / self.stride)) * self.stride
+            ph = int(np.ceil(float(nh) / self.stride)) * self.stride
+            pw = int(np.ceil(float(nw) / self.stride)) * self.stride
+            imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], "constant",
+                          constant_values=self.pad_value)
+
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing="ij")
+            coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype("float32")
+            imgs, nzhw = self.split_comber.split(imgs)
+            coord2, nzhw2 = self.split_comber.split(coord,
+                                                    side_len=self.split_comber.side_len / self.stride,
+                                                    max_stride=self.split_comber.max_stride / self.stride,
+                                                    margin=self.split_comber.margin / self.stride)
+            assert np.all(nzhw == nzhw2)
+            imgs = (imgs.astype(np.float32) - 128) / 128
+            return torch.from_numpy(imgs), bboxes, torch.from_numpy(coord2), np.array(nzhw), ori_imgs
 
     def __len__(self):
-        if self.subset == 'train':
+        if self.subset == "train":
             return int(len(self.bboxes) / (1 - self.r_rand))
             # return len(self.bboxes)
-        elif self.subset == 'val':
+        elif self.subset == "val":
             return len(self.bboxes)
         else:
-            return len(self.sample_bboxes)
+            return len(self.filenames)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
     from show_results import plot_bbox
@@ -290,7 +341,7 @@ if __name__ == '__main__':
     writer = SummaryWriter(os.path.join("Visualize", "MethodistFull"))
 
     config = IncidentalConfig()
-    dataset = MethodistFull(config, subset="train")
+    dataset = MethodistFull(config, subset="test")
 
     # test_loader = DataLoader(
     #     dataset,
@@ -308,7 +359,7 @@ if __name__ == '__main__':
         pin_memory=True)
 
     iterator = iter(train_loader)
-    sample, label, coord, target = next(iterator)
+    sample, label, coord, target, imgs = next(iterator)
 
     from detector_ben.utils import stack_nodule
     fig = stack_nodule(sample[1, 0], target[1])
