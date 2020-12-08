@@ -251,6 +251,7 @@ def main(args):
             pin_memory=False)
 
         inference(test_loader, net, get_pbb, save_dir, config)
+        return
 
     ## Run test
     if args.test == 1:

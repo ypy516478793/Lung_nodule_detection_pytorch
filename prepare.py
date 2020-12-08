@@ -634,6 +634,23 @@ def preprocess_luna():
     print('end preprocessing luna')
     f= open(finished_flag,"w+")
 
+def change_root_info(dst_dir):
+    file = os.path.join(dst_dir, "CTinfo.npz")
+    infos = np.load(file, allow_pickle=True)["info"]
+    for info in infos:
+        s = info["imagePath"].find("Lung_patient")
+        info["imagePath"] = os.path.join(dst_dir, info["imagePath"][s:].replace("\\", "/"))
+    print(infos)
+
+    import shutil
+    shutil.move(file, os.path.join(dst_dir, "CTinfo_old.npz"))
+    np.savez_compressed(file, info=infos)
+    print("Save all scan infos to {:s}".format(file))
+
+
+
 
 if __name__=='__main__':
-    preprocess_luna()
+    # preprocess_luna()
+    dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
+    change_root_info(dst_dir)

@@ -10,9 +10,12 @@ import time
 import os
 
 class IncidentalConfig(object):
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
+    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
-    POS_LABEL_FILE = "pos_labels.csv"
+    # POS_LABEL_FILE = "pos_labels.csv"
+    POS_LABEL_FILE = None
 
     ANCHORS = [10.0, 30.0, 60.0]
     # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
@@ -136,38 +139,39 @@ class MethodistFull(Dataset):
         self.split_comber = SplitComb(config.SIDE_LEN, config.MAX_STRIDE, config.STRIDE,
                                       config.MARGIN, config.PAD_VALUE)
         self.imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
-        self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+        if pos_label_file is not None:
+            self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
         self.blacklist = []
         self.crop = Crop(config)
         self.label_mapping = LabelMapping(config, subset)
         self.load_subset(subset)
 
     def load_subset(self, subset):
-        # if subset == "inference":
-        #     infos = self.imageInfo
-        # else:
-        #     ## train/val/test split
-        #     trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
-        #     valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
-        #
-        #     assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
-        #     if subset == "train":
-        #         infos = trainInfo
-        #     elif subset == "val":
-        #         infos = valInfo
-        #     else:
-        #         infos = testInfo
-
-        ## train/val/test split
-        trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
-        valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
-
-        if subset == "train":
-            infos = trainInfo
-        elif subset == "val":
-            infos = valInfo
+        if subset == "inference":
+            infos = self.imageInfo
         else:
-            infos = testInfo
+            ## train/val/test split
+            trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
+            valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
+
+            assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
+            if subset == "train":
+                infos = trainInfo
+            elif subset == "val":
+                infos = valInfo
+            else:
+                infos = testInfo
+
+        # ## train/val/test split
+        # trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
+        # valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
+        #
+        # if subset == "train":
+        #     infos = trainInfo
+        # elif subset == "val":
+        #     infos = valInfo
+        # else:
+        #     infos = testInfo
 
         ## Get the file list for current subset
         start = infos[0]["imagePath"].find("Lung_patient")
@@ -185,16 +189,17 @@ class MethodistFull(Dataset):
         ## Load the label for current subset
         labels = []
         print("Subset {:s} has {:d} samples.".format(subset, len(fileList)))
-        for filePath in self.filenames:
-            info = self.search_info(filePath)
-            assert info != -1, "No matched info!!"
-            l = self.load_pos(info)
-            # print data_dir, idx
-            # l = np.load(data_dir+idx+"_label.npy",allow_pickle="True")
-            # print l, os.path.join(data_dir, "%s_label.npy" %idx)
-            if np.all(l == 0):
-                l = np.array([])
-            labels.append(l)
+        if "pos_df" in dir(self):
+            for filePath in self.filenames:
+                info = self.search_info(filePath)
+                assert info != -1, "No matched info!!"
+                l = self.load_pos(info)
+                # print data_dir, idx
+                # l = np.load(data_dir+idx+"_label.npy",allow_pickle="True")
+                # print l, os.path.join(data_dir, "%s_label.npy" %idx)
+                if np.all(l == 0):
+                    l = np.array([])
+                labels.append(l)
 
         ## Duplicate samples based on the nodule size
         self.sample_bboxes = labels
@@ -209,7 +214,8 @@ class MethodistFull(Dataset):
                             self.bboxes += [[np.concatenate([[i], t])]] * 2
                         if t[3] > self.config.SIZE_LIM3:
                             self.bboxes += [[np.concatenate([[i], t])]] * 4
-            self.bboxes = np.concatenate(self.bboxes, axis=0)
+            if len(self.bboxes) > 0:
+                self.bboxes = np.concatenate(self.bboxes, axis=0)
 
     def search_info(self, path):
         for info in self.imageInfo:
@@ -233,7 +239,7 @@ class MethodistFull(Dataset):
         np.random.seed(int(str(t % 1)[2:7]))  # seed according to time
 
         isRandomImg = False
-        if self.subset != "test":
+        if self.subset == "train" or self.subset == "val":
             if idx >= len(self.bboxes):
                 isRandom = True
                 idx = idx % len(self.bboxes)
