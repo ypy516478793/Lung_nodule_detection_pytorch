@@ -1,6 +1,7 @@
 from skimage.color import gray2rgb
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+import scipy.ndimage
 import numpy as np
 import sys
 import os
@@ -170,3 +171,41 @@ def get_logger(logpath, displaying=True, saving=True, debug=False):
         # console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
     return logger
+
+
+def invert_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
+    """
+    label: [z, y, x, d]
+    """
+    spacing = map(float, ([thickness] + list(spacing)))
+    spacing = np.array(list(spacing))
+    resize_factor = new_spacing / spacing
+    label[:3] = np.round(label[:3] * resize_factor)
+    label[3] = label[3] * resize_factor[1]
+    return label
+
+def invert_image(image, thickness, spacing, new_spacing=[1, 1, 1]):
+    # Determine current pixel spacing
+    spacing = map(float, ([thickness] + list(spacing)))
+    spacing = np.array(list(spacing))
+    resize_factor = new_spacing / spacing
+    new_real_shape = image.shape * resize_factor
+    new_shape = np.round(new_real_shape)
+    real_resize_factor = new_shape / image.shape
+    spacing = new_spacing / real_resize_factor
+    image = scipy.ndimage.interpolation.zoom(image, real_resize_factor)
+
+    return image, spacing
+
+def resample_image(image, thickness, spacing, new_spacing=[1, 1, 1]):
+    # Determine current pixel spacing
+    spacing = map(float, ([thickness] + list(spacing)))
+    spacing = np.array(list(spacing))
+    resize_factor = spacing / new_spacing
+    new_real_shape = image.shape * resize_factor
+    new_shape = np.round(new_real_shape)
+    real_resize_factor = new_shape / image.shape
+    new_spacing = spacing / real_resize_factor
+    image = scipy.ndimage.interpolation.zoom(image, real_resize_factor)
+
+    return image, new_spacing

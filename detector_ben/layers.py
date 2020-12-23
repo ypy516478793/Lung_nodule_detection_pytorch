@@ -297,9 +297,6 @@ def top_pbb(pbb, n, config):
     nms_th = config.NMS_TH
     pbb = pbb[pbb[:, 0] >= conf_th]
     pbb = nms(pbb, nms_th)
-
-    print("")
-
     return pbb
 
 
