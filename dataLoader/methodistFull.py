@@ -10,12 +10,14 @@ import time
 import os
 
 class IncidentalConfig(object):
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
+    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
-    # POS_LABEL_FILE = "pos_labels.csv"
-    POS_LABEL_FILE = None
+    POS_LABEL_FILE = "pos_labels.csv"
+    # POS_LABEL_FILE = None
+    BLACK_LIST = []
 
     ANCHORS = [10.0, 30.0, 60.0]
     # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
@@ -44,6 +46,8 @@ class IncidentalConfig(object):
 
     SIDE_LEN = 144
     MARGIN = 32
+
+    ORIGIN_SCALE = True
 
     def display(self):
         """Display Configuration values."""
@@ -119,17 +123,8 @@ class MethodistFull(Dataset):
         assert (subset == "train" or subset == "val" or subset == "test" or subset == "inference")
         self.config = config
         self.subset = subset
-        # self.max_stride = IncidentalConfig.MAX_STRIDE
-        # self.stride = config["stride"]
-        # sizelim = config["sizelim"] / config["reso"]
-        # sizelim2 = config["sizelim2"] / config["reso"]
-        # sizelim3 = config["sizelim3"] / config["reso"]
-        # self.blacklist = config["blacklist"]
-        # self.isScale = config["aug_scale"]
-        # self.r_rand = config["r_rand_crop"]
-        # self.augtype = config["augtype"]
-        # self.pad_value = config["pad_value"]  # may need to change to 0
         self.data_dir = data_dir = config.DATA_DIR
+        self.blacklist = config.BLACK_LIST
         info_file = config.INFO_FILE
         pos_label_file = config.POS_LABEL_FILE
         self.augtype = config.AUGTYPE
@@ -141,12 +136,12 @@ class MethodistFull(Dataset):
         self.imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
         if pos_label_file is not None:
             self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
-        self.blacklist = []
         self.crop = Crop(config)
         self.label_mapping = LabelMapping(config, subset)
         self.load_subset(subset)
 
     def load_subset(self, subset):
+        ## train/val/test split
         if subset == "inference":
             infos = self.imageInfo
         else:
@@ -161,17 +156,6 @@ class MethodistFull(Dataset):
                 infos = valInfo
             else:
                 infos = testInfo
-
-        # ## train/val/test split
-        # trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
-        # valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
-        #
-        # if subset == "train":
-        #     infos = trainInfo
-        # elif subset == "val":
-        #     infos = valInfo
-        # else:
-        #     infos = testInfo
 
         ## Get the file list for current subset
         start = infos[0]["imagePath"].find("Lung_patient")
@@ -250,7 +234,9 @@ class MethodistFull(Dataset):
             isRandom = False
 
         if self.subset == "inference":
-            imgs = np.load(self.filenames[idx], allow_pickle=True)["image"][np.newaxis, :]
+            temp = np.load(self.filenames[idx], allow_pickle=True)
+            imgs = temp["image"][np.newaxis, :]
+            info = temp["info"]
             imgs = lumTrans(imgs)
             ori_imgs = np.copy(imgs)
             nz, nh, nw = imgs.shape[1:]
@@ -271,7 +257,7 @@ class MethodistFull(Dataset):
                                                     margin=self.split_comber.margin / self.stride)
             assert np.all(nzhw == nzhw2)
             imgs = (imgs.astype(np.float32) - 128) / 128
-            return torch.from_numpy(imgs), None, torch.from_numpy(coord2), np.array(nzhw), ori_imgs
+            return torch.from_numpy(imgs), None, torch.from_numpy(coord2), np.array(nzhw), ori_imgs, info
 
         if self.subset != "test":
             if not isRandomImg:
@@ -349,26 +335,29 @@ if __name__ == "__main__":
     config = IncidentalConfig()
     dataset = MethodistFull(config, subset="test")
 
-    # test_loader = DataLoader(
-    #     dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     collate_fn=collate,
-    #     pin_memory=False)
-
-    train_loader = DataLoader(
+    test_loader = DataLoader(
         dataset,
-        batch_size=2,
-        shuffle=True,
+        batch_size=1,
+        shuffle=False,
         num_workers=0,
-        pin_memory=True)
+        collate_fn=collate,
+        pin_memory=False)
 
-    iterator = iter(train_loader)
-    sample, label, coord, target, imgs = next(iterator)
+    iterator = iter(test_loader)
+    cropped_sample, target, coord, nzhw, sample = next(iterator)
+
+    # train_loader = DataLoader(
+    #     dataset,
+    #     batch_size=2,
+    #     shuffle=True,
+    #     num_workers=0,
+    #     pin_memory=True)
+    #
+    # iterator = iter(train_loader)
+    # sample, label, coord, target = next(iterator)
 
     from detector_ben.utils import stack_nodule
-    fig = stack_nodule(sample[1, 0], target[1])
+    fig = stack_nodule(sample[1, 0], target[1].numpy())
     plt.show()
     plt.close(fig)
 

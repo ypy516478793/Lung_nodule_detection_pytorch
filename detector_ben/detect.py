@@ -1,13 +1,9 @@
 import sys
 sys.path.append("../")
 
-from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
-from torch.nn import DataParallel
-
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
+from copy import deepcopy
 from tqdm import tqdm
 
 
@@ -38,53 +34,59 @@ import os
 #
 # from detector.layers import acc
 
+parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
+parser.add_argument("--datasource", "-d", type=str, default="lunaRaw",
+                    help="luna, lunaRaw, methoidstPilot, methoidstFull, additional")
+parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
+# parser.add_argument("--config", "-c", default="config_methodistFull", type=str)
+parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
+                    help="number of data loading workers (default: 32)")
+parser.add_argument("--epochs", default=100, type=int, metavar="N",
+                    help="number of total epochs to run")
+parser.add_argument("--start-epoch", default=24, type=int, metavar="N",
+                    help="manual epoch number (useful on restarts)")
+parser.add_argument("-b", "--batch-size", default=4, type=int,
+                    metavar="N", help="mini-batch size (default: 16)")
+parser.add_argument("--lr", "--learning-rate", default=0.01, type=float,
+                    metavar="LR", help="initial learning rate")
+parser.add_argument("--momentum", default=0.9, type=float, metavar="M",
+                    help="momentum")
+parser.add_argument("--weight-decay", "--wd", default=1e-4, type=float,
+                    metavar="W", help="weight decay (default: 1e-4)")
+parser.add_argument("--save-freq", default="1", type=int, metavar="S",
+                    help="save frequency")
+# parser.add_argument("--resume", default="resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
+# parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
+# parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
+parser.add_argument("--resume", default="../detector_ben/results/res18-20201222-095826/024.ckpt",
+# parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/032.ckpt",
+                    type=str, metavar="PATH",
+                    help="path to latest checkpoint (default: none)")
+parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
+                    help="directory to save checkpoint (default: none)")
+parser.add_argument("--test", default=False, type=eval, metavar="TEST",
+                    help="1 do test evaluation, 0 not")
+parser.add_argument("--inference", default=False, type=eval,
+                    help="True if run inference (no label) else False")
+parser.add_argument("--testthresh", default=-3, type=float,
+                    help="threshod for get pbb")
+parser.add_argument("--split", default=8, type=int, metavar="SPLIT",
+                    help="In the test phase, split the image to 8 parts")  # Split changed to 1 just to check.
+# parser.add_argument("--gpu", default="4, 5, 6, 7", type=str, metavar="N",
+parser.add_argument("--gpu", default="0, 1, 2, 3", type=str, metavar="N",
+                    help="use gpu")
+parser.add_argument("--n_test", default=2, type=int, metavar="N",
+                    help="number of gpu for test")
+parser.add_argument("--train_patience", type=int, default=10,
+                    help="If the validation loss does not decrease for this number of epochs, stop training")
+args = parser.parse_args()
+os.environ["CUDA_VISIBLE_DEVICES"]= args.gpu
+# n_gpu = setgpu(args.gpu)
 
-def get_args():
-
-    parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
-    parser.add_argument("--datasource", "-d", type=str, default="methoidstFull",
-                        help="luna, lunaRaw, methoidstPilot, methoidstFull, additional")
-    parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
-    parser.add_argument("--config", "-c", default="config_methodistFull", type=str)
-    parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
-                        help="number of data loading workers (default: 32)")
-    parser.add_argument("--epochs", default=100, type=int, metavar="N",
-                        help="number of total epochs to run")
-    parser.add_argument("--start-epoch", default=30, type=int, metavar="N",
-                        help="manual epoch number (useful on restarts)")
-    parser.add_argument("-b", "--batch-size", default=4, type=int,
-                        metavar="N", help="mini-batch size (default: 16)")
-    parser.add_argument("--lr", "--learning-rate", default=0.01, type=float,
-                        metavar="LR", help="initial learning rate")
-    parser.add_argument("--momentum", default=0.9, type=float, metavar="M",
-                        help="momentum")
-    parser.add_argument("--weight-decay", "--wd", default=1e-4, type=float,
-                        metavar="W", help="weight decay (default: 1e-4)")
-    parser.add_argument("--save-freq", default="1", type=int, metavar="S",
-                        help="save frequency")
-    # parser.add_argument("--resume", default="resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
-    # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
-    parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
-    # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/032.ckpt",
-                        type=str, metavar="PATH",
-                        help="path to latest checkpoint (default: none)")
-    parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
-                        help="directory to save checkpoint (default: none)")
-    parser.add_argument("--test", default=True, type=eval, metavar="TEST",
-                        help="1 do test evaluation, 0 not")
-    parser.add_argument("--inference", default=True, type=eval,
-                        help="True if run inference (no label) else False")
-    parser.add_argument("--testthresh", default=-3, type=float,
-                        help="threshod for get pbb")
-    parser.add_argument("--split", default=8, type=int, metavar="SPLIT",
-                        help="In the test phase, split the image to 8 parts")  # Split changed to 1 just to check.
-    parser.add_argument("--gpu", default="4, 5, 6, 7", type=str, metavar="N",
-                        help="use gpu")
-    parser.add_argument("--n_test", default=2, type=int, metavar="N",
-                        help="number of gpu for test")
-    args = parser.parse_args()
-    return args
-
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
+from torch.nn import DataParallel
 
 # def listFiles(config_training):
 #     datarootdir = config_training["data_root_path"]
@@ -138,16 +140,17 @@ def get_args():
 #     return trainfilelist, valfilelist, testfilelist
 
 
-def main(args):
+def main():
     ## Set gpu resources
     torch.manual_seed(0)
-    n_gpu = setgpu(args.gpu)
     # args.n_gpu = n_gpu
 
     ## Datasource (config)
     if args.datasource == "lunaRaw":
         # Dataset = datald.lunaRaw
-        pass
+        from dataLoader.lunaRaw import LunaRaw, LunaConfig
+        config = LunaConfig()
+        Dataset = LunaRaw
     elif args.datasource == "luna":
         # Dataset = datald.luna
         pass
@@ -235,6 +238,7 @@ def main(args):
     ## Set writer
     global writer
     writer = SummaryWriter(os.path.join(save_dir, "runs/"))
+    best_loss = np.inf
     # writer.add_graph(net, (torch.zeros(2, 1, 96, 96, 96), torch.zeros(2, 3, 24, 24, 24)))
 
 
@@ -309,10 +313,11 @@ def main(args):
             num_workers=args.workers,
             pin_memory=True)
 
+        patience_train = 0
         for epoch in range(start_epoch, args.epochs + 1):
             print("Start epoch {:d}!".format(epoch))
-            train(train_loader, net, loss, epoch, optimizer, get_lr, args.save_freq, save_dir)
-            validate(val_loader, net, loss, epoch)
+            train(train_loader, net, loss, epoch, optimizer, get_lr)
+            best_loss, patience_train = validate(val_loader, net, loss, epoch, save_dir, best_loss, patience_train)
 
     # net = DataParallel(net)
     # print(len(trainfilelist))
@@ -371,7 +376,7 @@ def main(args):
     #     validate(val_loader, net, loss)
 
 
-def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir):
+def train(data_loader, net, loss, epoch, optimizer, get_lr):
     start_time = time.time()
     saved_model_list = []
     net.train()
@@ -382,12 +387,12 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
     metrics = []
 
     for i, (data, label, coord, target) in enumerate(tqdm(data_loader)):
-        if epoch == args.epochs:
-            for j in range(len(data)):
-                if not torch.isnan(target[0][0]):
-                    fig = stack_nodule(data[j, 0].numpy(), target[j].numpy())
-                    writer.add_figure("training images",
-                                      fig, global_step=i)
+        # if epoch == args.start_epoch + 1:
+        #     for j in range(len(data)):
+        #         if not torch.isnan(target[j][0]):
+        #             fig = stack_nodule(data[j, 0].numpy(), target[j].numpy())
+        #             writer.add_figure("training images",
+        #                               fig, global_step=i)
 
         data = Variable(torch.FloatTensor(data).cuda(async=True))
         label = Variable(torch.FloatTensor(label).cuda(async=True))
@@ -402,35 +407,36 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
         loss_output[0] = loss_output[0].data.item()
         metrics.append(loss_output)
 
-    if epoch % args.save_freq == 0:
-        state_dict = net.module.state_dict()
-        for key in state_dict.keys():
-            state_dict[key] = state_dict[key].cpu()
-
-        # dir_checkpoint = os.path.join(save_folder, "checkpoints/")
-        # if average_training_loss < best_loss:
-        #     pt_name = dir_checkpoint + "CP_epoch{}.pth".format(epoch + 1)
-        #     torch.save(net.state_dict(), pt_name)
-        #     print("Checkpoint {} saved !".format(epoch + 1))
-        #     best_loss = average_training_loss
-        #     saved_model_list.append(pt_name)
-        #     if len(saved_model_list) > max_to_keep:
-        #         delete_model = saved_model_list.pop(0)
-        #         os.remove(delete_model)
-
-        checkpoint = os.path.join(save_dir, "%03d.ckpt" % epoch)
-        torch.save({
-            "epoch": epoch,
-            "save_dir": save_dir,
-            "state_dict": state_dict,
-            "args": args},
-            checkpoint)
+    # if epoch % args.save_freq == 0:
+    #     state_dict = net.module.state_dict()
+    #     for key in state_dict.keys():
+    #         state_dict[key] = state_dict[key].cpu()
+    #
+    #     # dir_checkpoint = os.path.join(save_folder, "checkpoints/")
+    #     # if average_training_loss < best_loss:
+    #     #     pt_name = dir_checkpoint + "CP_epoch{}.pth".format(epoch + 1)
+    #     #     torch.save(net.state_dict(), pt_name)
+    #     #     print("Checkpoint {} saved !".format(epoch + 1))
+    #     #     best_loss = average_training_loss
+    #     #     saved_model_list.append(pt_name)
+    #     #     if len(saved_model_list) > max_to_keep:
+    #     #         delete_model = saved_model_list.pop(0)
+    #     #         os.remove(delete_model)
+    #
+    #     checkpoint = os.path.join(save_dir, "%03d.ckpt" % epoch)
+    #     torch.save({
+    #         "epoch": epoch,
+    #         "save_dir": save_dir,
+    #         "state_dict": state_dict,
+    #         "args": args},
+    #         checkpoint)
 
     end_time = time.time()
 
     metrics = np.asarray(metrics, np.float32)
     print("Epoch %03d (lr %.5f)" % (epoch, lr))
-    print("Train:      tpr %3.2f, tnr %3.2f, total pos %d, total neg %d, time %3.2f" % (
+    print("Train: acc %3.2f, tpr %3.2f, tnr %3.2f, total pos %d, total neg %d, time %3.2f" % (
+        100.0 * np.sum(metrics[:, [6, 8]]) / np.sum(metrics[:, [7, 9]]),
         100.0 * np.sum(metrics[:, 6]) / np.sum(metrics[:, 7]),
         100.0 * np.sum(metrics[:, 8]) / np.sum(metrics[:, 9]),
         np.sum(metrics[:, 7]),
@@ -445,19 +451,27 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, save_freq, save_dir)
         np.mean(metrics[:, 5])))
     print
 
+    writer.add_scalar('Train/acc', 100.0 * np.sum(metrics[:, [6, 8]]) / np.sum(metrics[:, [7, 9]]), epoch)
+    writer.add_scalar('Train/tpr', 100.0 * np.sum(metrics[:, 6]) / np.sum(metrics[:, 7]), epoch)
+    writer.add_scalar('Train/tnr', 100.0 * np.sum(metrics[:, 8]) / np.sum(metrics[:, 9]), epoch)
+    writer.add_scalar('Train/loss', np.mean(metrics[:, 0]), epoch)
+    writer.add_scalar('Train/classify loss', np.mean(metrics[:, 1]), epoch)
+    writer.add_scalar('Train/regress loss', np.mean(metrics[:, 2]), epoch)
 
-def validate(data_loader, net, loss, epoch):
+
+def validate(data_loader, net, loss, epoch, save_dir, best_loss, patience_train):
     start_time = time.time()
 
     net.eval()
 
     metrics = []
-    for i, (data, label, coord, target) in enumerate(data_loader):
-        for j in range(len(data)):
-            if not torch.isnan(target[0][0]):
-                fig = stack_nodule(data[j, 0].numpy(), target[j].numpy())
-                writer.add_figure("validation images",
-                                  fig, global_step=epoch * len(data_loader) + i)
+    for i, (data, label, coord, target) in enumerate(tqdm(data_loader)):
+        # if epoch == args.start_epoch + 1:
+        #     for j in range(len(data)):
+        #         if not torch.isnan(target[j][0]):
+        #             fig = stack_nodule(data[j, 0].numpy(), target[j].numpy())
+        #             writer.add_figure("validation images",
+        #                               fig, global_step=epoch * len(data_loader) + i)
 
         with torch.no_grad():
             data = Variable(data.cuda(async=True))
@@ -472,7 +486,8 @@ def validate(data_loader, net, loss, epoch):
     end_time = time.time()
 
     metrics = np.asarray(metrics, np.float32)
-    print("Validation: tpr %3.2f, tnr %3.8f, total pos %d, total neg %d, time %3.2f" % (
+    print("Validation: acc %3.2f, tpr %3.2f, tnr %3.8f, total pos %d, total neg %d, time %3.2f" % (
+        100.0 * np.sum(metrics[:, [6, 8]]) / np.sum(metrics[:, [7, 9]]),
         100.0 * np.sum(metrics[:, 6]) / np.sum(metrics[:, 7]),
         100.0 * np.sum(metrics[:, 8]) / np.sum(metrics[:, 9]),
         np.sum(metrics[:, 7]),
@@ -486,8 +501,43 @@ def validate(data_loader, net, loss, epoch):
         np.mean(metrics[:, 4]),
         np.mean(metrics[:, 5])))
     print
-    print
 
+    writer.add_scalar('Val/acc', 100.0 * np.sum(metrics[:, [6, 8]]) / np.sum(metrics[:, [7, 9]]), epoch)
+    writer.add_scalar('Val/tpr', 100.0 * np.sum(metrics[:, 6]) / np.sum(metrics[:, 7]), epoch)
+    writer.add_scalar('Val/tnr', 100.0 * np.sum(metrics[:, 8]) / np.sum(metrics[:, 9]), epoch)
+    writer.add_scalar('Val/loss', np.mean(metrics[:, 0]), epoch)
+    writer.add_scalar('Val/classify loss', np.mean(metrics[:, 1]), epoch)
+    writer.add_scalar('Val/regress loss', np.mean(metrics[:, 2]), epoch)
+
+    loss_mean = np.mean(metrics[:, 0])
+    if loss_mean < best_loss:
+        state_dict = net.module.state_dict()
+        for key in state_dict.keys():
+            state_dict[key] = state_dict[key].cpu()
+
+        checkpoint = os.path.join(save_dir, "%03d.ckpt" % epoch)
+        torch.save({
+            "epoch": epoch,
+            "save_dir": save_dir,
+            "state_dict": state_dict,
+            "args": args},
+            checkpoint)
+
+        print("=========================EPOCH_{} loss decrease from {:.4f} to {:.4f}=========================".format(
+              epoch, best_loss, loss_mean))
+        print("=========================EPOCH_{} Saved checkpoing=========================".format(
+              epoch))
+        patience_train = 0
+        best_loss = loss_mean
+    else:
+        print("==========================EPOCH_{} loss {:.4f} doesn't decrease from {:.4f}=========================".format(
+              epoch, loss_mean, best_loss))
+        patience_train = patience_train + 1
+        if patience_train >= args.train_patience:
+            print("=========================EPOCH_{} loss {:.4f} doesn't decrease for {} epochs, stopped!".format(
+                  epoch, best_loss, patience_train))
+            sys.exit()
+    return best_loss, patience_train
 
 def test(data_loader, net, get_pbb, save_dir, config):
     start_time = time.time()
@@ -649,7 +699,8 @@ def inference(data_loader, net, get_pbb, save_dir, config):
 
     namelist = []
     split_comber = data_loader.dataset.split_comber
-    for i_name, (data, target, coord, nzhw, imgs) in enumerate(data_loader):
+    SKIP = True
+    for i_name, (data, target, coord, nzhw, imgs, infos) in enumerate(data_loader):
 
         print
         print("I am at iteration " + str(i_name))
@@ -660,9 +711,17 @@ def inference(data_loader, net, get_pbb, save_dir, config):
         nzhw = nzhw[0]
         name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].strip(".npz")  # .split("-")[0]  wentao change
         print("Patient MRN-date: ", name)
+
+        # if name == "024877466-20170221":
+        #     SKIP = False
+        # if SKIP:
+        #     continue
+
+
         data = data[0][0]
         coord = coord[0][0]
         imgs = imgs[0]
+        infos = infos[0].tolist()
         isfeat = False
         n_per_run = args.n_test
 
@@ -706,20 +765,43 @@ def inference(data_loader, net, get_pbb, save_dir, config):
 
         pbb = top_pbb(pbb, 5, config)
 
-        n_show = np.min([len(pbb), 10])
+        config.ORIGIN_SCALE = True
+        ori_str = "_ori" if config.ORIGIN_SCALE else ""
+        pbb_infer = deepcopy(pbb)
+        if config.ORIGIN_SCALE:
+            thickness, spacing = infos["sliceThickness"], infos["pixelSpacing"]
+            img_infer = invert_image(imgs[0], thickness, spacing)
+            for j in range(len(pbb)):
+                pbb_infer[j][1:5] = invert_pos(pbb[j][1:5], thickness, spacing)
+        else:
+            img_infer = imgs[0]
+
+        delete_row = []
+        for row, pi in enumerate(pbb_infer):
+            if pi[1] == img_infer[0].shape[0]:
+                delete_row.append(row)
+        pbb_infer = np.delete(pbb_infer, delete_row, 0)
+
+        n_show = np.min([len(pbb_infer), 10])
         for j in range(n_show):
-            fig = stack_nodule(imgs[0], pbb[j][1:5], prob=pbb[j][0])
-            plt.savefig(os.path.join(save_dir, name, "pred_{:d}.png".format(j)))
+            fig = stack_nodule(img_infer[0], pbb_infer[j][1:5], prob=pbb_infer[j][0], show_every=1)
+            plt.savefig(os.path.join(save_dir, name, "pred{:s}_{:d}.png".format(ori_str, j)))
             plt.close(fig)
-            plot_bbox(os.path.join(save_dir, name, "pred_{:d}".format(j)), imgs[0], pbb[j][1:5], show=False)
-        np.save(os.path.join(save_dir, name, "pbb.npy"), pbb)
-        if not os.path.exists(os.path.join(save_dir, name, "pbb.txt")):
-            with open(os.path.join(save_dir, name, "pbb.txt"), "a+") as f:
-                f.write("Patient name is: " + str(name))
+            plot_bbox(os.path.join(save_dir, name, "pred{:s}_{:d}".format(ori_str, j)), img_infer[0], pbb_infer[j][1:5], show=False)
+        np.save(os.path.join(save_dir, name, "pbb{:s}.npy".format(ori_str)), pbb_infer)
+        if not os.path.exists(os.path.join(save_dir, name, "pbb{:s}.txt".format(ori_str))):
+            with open(os.path.join(save_dir, name, "pbb{:s}.txt".format(ori_str)), "a+") as f:
+                f.write("Patient id (MRN - date): " + str(name))
                 f.write("\n\n")
+                f.write("Bounding boxes: [z, y, x, d]\n")
+                f.write("z: slice index \n")
+                f.write("y: row index \n")
+                f.write("x: column index \n")
+                f.write("d: diameter of the nodule \n")
+                f.write("\n")
                 f.write("The predicted bounding boxes are:\n")
-                for bb in range(len(pbb)):
-                    f.write(str(pbb[bb][1:5]) + "\n")
+                for j in range(n_show):
+                    f.write("{:d}: ".format(j) + str(pbb_infer[j][1:5]) + "\n")
                 f.write("\n")
             f.close()
 
@@ -754,5 +836,4 @@ def singletest(data,net,config,splitfun,combinefun,n_per_run,margin = 64,isfeat=
     else:
         return output
 if __name__ == "__main__":
-    args = get_args()
-    main(args)
+    main()
