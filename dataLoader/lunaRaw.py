@@ -52,7 +52,7 @@ class LunaConfig(object):
     SIDE_LEN = 144
     MARGIN = 32
 
-    ORIGIN_SCALE = True
+    ORIGIN_SCALE = False
 
     def display(self):
         """Display Configuration values."""
@@ -205,7 +205,7 @@ class LunaRaw(Dataset):
     def load_subset(self, subset):
 
         fileList = []
-        assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
+        assert subset == "train" or subset == "val" or subset == "test" or subset == "inference", "Unknown subset!"
         if subset == "train":
             data_dir = self.train_data_dir
         elif subset == "val":
@@ -362,7 +362,7 @@ class LunaRaw(Dataset):
         if self.subset == "inference":
             temp = np.load(self.filenames[idx], allow_pickle=True)
             imgs = temp["image"]
-            info = temp["info"]
+            info = np.array([])
             # imgs = lumTrans(imgs)
             ori_imgs = np.copy(imgs)
             nz, nh, nw = imgs.shape[1:]
@@ -459,7 +459,19 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("Visualize", "lunaRaw"))
 
     config = LunaConfig()
-    dataset = LunaRaw(config, subset="train")
+    dataset = LunaRaw(config, subset="inference")
+
+    inference_loader = DataLoader(
+        dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        collate_fn=collate,
+        pin_memory=False)
+
+    iterator = iter(inference_loader)
+    cropped_sample, target, coord, nzhw, sample, info = next(iterator)
+
 
     # test_loader = DataLoader(
     #     dataset,
@@ -468,18 +480,19 @@ if __name__ == "__main__":
     #     num_workers=0,
     #     collate_fn=collate,
     #     pin_memory=False)
+    #
+    # iterator = iter(test_loader)
+    # cropped_sample, target, coord, nzhw, sample = next(iterator)
 
-    train_loader = DataLoader(
-        dataset,
-        batch_size=2,
-        shuffle=True,
-        num_workers=0,
-        pin_memory=True)
-
-    iterator = iter(train_loader)
-    sample, label, coord, target = next(iterator)
-    # sample, label, coord, target, imgs = next(iterator)
-    # sample, bboxes, coord, nzhw, imgs = next(iterator)
+    # train_loader = DataLoader(
+    #     dataset,
+    #     batch_size=2,
+    #     shuffle=True,
+    #     num_workers=0,
+    #     pin_memory=True)
+    #
+    # iterator = iter(train_loader)
+    # sample, label, coord, target = next(iterator)
     from detector_ben.utils import stack_nodule
     fig = stack_nodule(sample[1, 0], target[1])
     plt.show()

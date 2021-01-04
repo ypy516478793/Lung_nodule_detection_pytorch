@@ -47,7 +47,7 @@ class IncidentalConfig(object):
     SIDE_LEN = 144
     MARGIN = 32
 
-    ORIGIN_SCALE = True
+    ORIGIN_SCALE = False
 
     def display(self):
         """Display Configuration values."""
@@ -334,6 +334,17 @@ if __name__ == "__main__":
 
     config = IncidentalConfig()
     dataset = MethodistFull(config, subset="test")
+
+    # inference_loader = DataLoader(
+    #     dataset,
+    #     batch_size=1,
+    #     shuffle=False,
+    #     num_workers=0,
+    #     collate_fn=collate,
+    #     pin_memory=False)
+    #
+    # iterator = iter(inference_loader)
+    # cropped_sample, target, coord, nzhw, sample, info = next(iterator)
 
     test_loader = DataLoader(
         dataset,

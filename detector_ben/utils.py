@@ -55,7 +55,10 @@ def stack_nodule(images, label, prob=None, rows=5, cols=5, show_every=2, patchTy
     fig,ax = plt.subplots(rows,cols,figsize=[9, 9])
     num_show = rows*cols
     z, y, x, d = label
-    nz, h, w = images.shape
+    try:
+        nz, h, w = images.shape
+    except ValueError:
+        print("stop here!")
     start_with = int(z - num_show // 2 * show_every)
     edge_color = "g" if prob is None else "r"
     for i in range(num_show):

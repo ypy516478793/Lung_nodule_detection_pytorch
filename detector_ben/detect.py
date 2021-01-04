@@ -43,7 +43,7 @@ parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
                     help="number of data loading workers (default: 32)")
 parser.add_argument("--epochs", default=100, type=int, metavar="N",
                     help="number of total epochs to run")
-parser.add_argument("--start-epoch", default=24, type=int, metavar="N",
+parser.add_argument("--start-epoch", default=38, type=int, metavar="N",
                     help="manual epoch number (useful on restarts)")
 parser.add_argument("-b", "--batch-size", default=4, type=int,
                     metavar="N", help="mini-batch size (default: 16)")
@@ -58,13 +58,14 @@ parser.add_argument("--save-freq", default="1", type=int, metavar="S",
 # parser.add_argument("--resume", default="resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
 # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
-parser.add_argument("--resume", default="../detector_ben/results/res18-20201222-095826/024.ckpt",
+# parser.add_argument("--resume", default="../detector_ben/results/res18-20201222-095826/024.ckpt",
+parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/032.ckpt",
                     type=str, metavar="PATH",
                     help="path to latest checkpoint (default: none)")
 parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
                     help="directory to save checkpoint (default: none)")
-parser.add_argument("--test", default=False, type=eval, metavar="TEST",
+parser.add_argument("--test", default=True, type=eval, metavar="TEST",
                     help="1 do test evaluation, 0 not")
 parser.add_argument("--inference", default=False, type=eval,
                     help="True if run inference (no label) else False")
@@ -699,7 +700,6 @@ def inference(data_loader, net, get_pbb, save_dir, config):
 
     namelist = []
     split_comber = data_loader.dataset.split_comber
-    SKIP = True
     for i_name, (data, target, coord, nzhw, imgs, infos) in enumerate(data_loader):
 
         print
@@ -712,9 +712,7 @@ def inference(data_loader, net, get_pbb, save_dir, config):
         name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].strip(".npz")  # .split("-")[0]  wentao change
         print("Patient MRN-date: ", name)
 
-        # if name == "024877466-20170221":
-        #     SKIP = False
-        # if SKIP:
+        # if name != "1.3.6.1.4.1.14519.5.2.1.6279.6001.340158437895922179455019686521_image":
         #     continue
 
 
@@ -765,12 +763,11 @@ def inference(data_loader, net, get_pbb, save_dir, config):
 
         pbb = top_pbb(pbb, 5, config)
 
-        config.ORIGIN_SCALE = True
         ori_str = "_ori" if config.ORIGIN_SCALE else ""
         pbb_infer = deepcopy(pbb)
         if config.ORIGIN_SCALE:
             thickness, spacing = infos["sliceThickness"], infos["pixelSpacing"]
-            img_infer = invert_image(imgs[0], thickness, spacing)
+            img_infer = invert_image(imgs[0], thickness, spacing)[0]
             for j in range(len(pbb)):
                 pbb_infer[j][1:5] = invert_pos(pbb[j][1:5], thickness, spacing)
         else:
@@ -778,16 +775,16 @@ def inference(data_loader, net, get_pbb, save_dir, config):
 
         delete_row = []
         for row, pi in enumerate(pbb_infer):
-            if pi[1] == img_infer[0].shape[0]:
+            if np.any(pi[1:4] >= img_infer.shape[0]):
                 delete_row.append(row)
         pbb_infer = np.delete(pbb_infer, delete_row, 0)
 
         n_show = np.min([len(pbb_infer), 10])
         for j in range(n_show):
-            fig = stack_nodule(img_infer[0], pbb_infer[j][1:5], prob=pbb_infer[j][0], show_every=1)
-            plt.savefig(os.path.join(save_dir, name, "pred{:s}_{:d}.png".format(ori_str, j)))
+            fig = stack_nodule(img_infer, pbb_infer[j][1:5], prob=pbb_infer[j][0], show_every=1)
+            plt.savefig(os.path.join(save_dir, name, "pred{:s}_{:d}.svg".format(ori_str, j)))
             plt.close(fig)
-            plot_bbox(os.path.join(save_dir, name, "pred{:s}_{:d}".format(ori_str, j)), img_infer[0], pbb_infer[j][1:5], show=False)
+            plot_bbox(os.path.join(save_dir, name, "pred{:s}_{:d}".format(ori_str, j)), img_infer, pbb_infer[j][1:5], show=False)
         np.save(os.path.join(save_dir, name, "pbb{:s}.npy".format(ori_str)), pbb_infer)
         if not os.path.exists(os.path.join(save_dir, name, "pbb{:s}.txt".format(ori_str))):
             with open(os.path.join(save_dir, name, "pbb{:s}.txt".format(ori_str)), "a+") as f:

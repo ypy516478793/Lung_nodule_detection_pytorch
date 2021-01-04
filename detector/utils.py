@@ -34,8 +34,8 @@ def setgpu(gpuinput):
     else:
         gpus = gpuinput.replace(" ", "")
         gpu_in_use = [g for g in gpus.split(",") if g not in freeids]
-        if len(gpu_in_use) > 0:
-            raise ValueError("gpu{:s} is being used! Availabel gpus: gpu {:s}".format(",".join(gpu_in_use), freeids))
+        # if len(gpu_in_use) > 0:
+        #     raise ValueError("gpu{:s} is being used! Availabel gpus: gpu {:s}".format(",".join(gpu_in_use), freeids))
     print("using gpu "+gpus)
     os.environ["CUDA_VISIBLE_DEVICES"]=gpus
     return len(gpus.split(","))

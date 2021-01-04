@@ -28,10 +28,10 @@ from detector.layers import acc
 # os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 parser = argparse.ArgumentParser(description='PyTorch DataBowl3 Detector')
-parser.add_argument('--datasource', '-d', type=str, default='methoidstFull',
+parser.add_argument('--datasource', '-d', type=str, default='luna',
                     help='luna, lunaRaw, methoidstPilot, methoidstFull, additional')
 parser.add_argument('--model', '-m', metavar='MODEL', default='res18', help='model')
-parser.add_argument('--config', '-c', default='config_methodistFull', type=str)
+parser.add_argument('--config', '-c', default='config_training', type=str)
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
@@ -212,7 +212,7 @@ def main():
             split_comber=split_comber)
         test_loader = DataLoader(
             dataset,
-            batch_size = 1,
+            batch_size = 2,
             shuffle = False,
             num_workers = 0,
             collate_fn = datald.collate,
