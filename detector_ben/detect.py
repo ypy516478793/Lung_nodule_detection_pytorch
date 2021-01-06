@@ -1,3 +1,18 @@
+"""
+Incidental trained model:
+    -d=methoidstFull --test=False --gpu="2,3"
+    --resume="../detector_ben/results/res18-20201222-095826/024.ckpt" --start-epoch=24 --best_loss=0.2370
+Low-dose LUNA16 trained model:
+    -d=lunaRaw --test=False --gpu="4,5,6,7"
+    --resume="../detector_ben/results/res18-20201223-115306/038.ckpt" --start-epoch=38 --best_loss=0.1206
+    --resume="../detector_ben/results/res18-20210105-171908/050.ckpt" --start-epoch=50 --best_loss=0.0703
+
+
+Run inference:
+    -d=methoidstFull --inference=True --gpu="0"
+    --resume="../detector_ben/results/res18-20201222-095826/024.ckpt"
+"""
+
 import sys
 sys.path.append("../")
 
@@ -43,8 +58,10 @@ parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
                     help="number of data loading workers (default: 32)")
 parser.add_argument("--epochs", default=100, type=int, metavar="N",
                     help="number of total epochs to run")
-parser.add_argument("--start-epoch", default=38, type=int, metavar="N",
+parser.add_argument("--start-epoch", default=0, type=int, metavar="N",
                     help="manual epoch number (useful on restarts)")
+parser.add_argument("--best_loss", default=np.inf, type=float,
+                    help="manual best loss (useful on restarts)")
 parser.add_argument("-b", "--batch-size", default=4, type=int,
                     metavar="N", help="mini-batch size (default: 16)")
 parser.add_argument("--lr", "--learning-rate", default=0.01, type=float,
@@ -239,7 +256,7 @@ def main():
     ## Set writer
     global writer
     writer = SummaryWriter(os.path.join(save_dir, "runs/"))
-    best_loss = np.inf
+    best_loss = args.best_loss
     # writer.add_graph(net, (torch.zeros(2, 1, 96, 96, 96), torch.zeros(2, 3, 24, 24, 24)))
 
 
