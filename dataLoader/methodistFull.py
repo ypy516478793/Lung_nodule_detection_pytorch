@@ -11,15 +11,17 @@ import os
 
 class IncidentalConfig(object):
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
+    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
     # POS_LABEL_FILE = "pos_labels.csv"
     POS_LABEL_FILE = None
     BLACK_LIST = []
 
     ANCHORS = [10.0, 30.0, 60.0]
+    MAX_NODULE_SIZE = 60
     # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
     CHANNEL = 1
     CROP_SIZE = [96, 96, 96]
@@ -140,6 +142,18 @@ class MethodistFull(Dataset):
         self.label_mapping = LabelMapping(config, subset)
         self.load_subset(subset)
 
+    # def screen(self):
+    #     '''
+    #     Remove nodule size >= 60
+    #     '''
+    #     num_images = len(self.imageInfo)
+    #     mask = np.ones(num_images, dtype=bool)
+    #     for imageId in range(num_images):
+    #         pos = self.load_pos(imageId)
+    #         if len(pos) == 0:
+    #             mask[imageId] = False
+    #     self.imageInfo = self.imageInfo[mask]
+
     def load_subset(self, subset):
         ## train/val/test split
         if subset == "inference":
@@ -215,6 +229,7 @@ class MethodistFull(Dataset):
         pos = self.pos_df[existId][["x", "y", "z", "d"]].values
         pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
         pos = pos[:, [2, 1, 0, 3]]
+        pos = pos[pos[:, -1] < self.config.MAX_NODULE_SIZE]
 
         return pos
 
@@ -333,20 +348,9 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("Visualize", "MethodistFull"))
 
     config = IncidentalConfig()
-    dataset = MethodistFull(config, subset="test")
+    dataset = MethodistFull(config, subset="inference")
 
-    # inference_loader = DataLoader(
-    #     dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     collate_fn=collate,
-    #     pin_memory=False)
-    #
-    # iterator = iter(inference_loader)
-    # cropped_sample, target, coord, nzhw, sample, info = next(iterator)
-
-    test_loader = DataLoader(
+    inference_loader = DataLoader(
         dataset,
         batch_size=1,
         shuffle=False,
@@ -354,8 +358,19 @@ if __name__ == "__main__":
         collate_fn=collate,
         pin_memory=False)
 
-    iterator = iter(test_loader)
-    cropped_sample, target, coord, nzhw, sample = next(iterator)
+    iterator = iter(inference_loader)
+    cropped_sample, target, coord, nzhw, sample, info = next(iterator)
+
+    # test_loader = DataLoader(
+    #     dataset,
+    #     batch_size=1,
+    #     shuffle=False,
+    #     num_workers=0,
+    #     collate_fn=collate,
+    #     pin_memory=False)
+    #
+    # iterator = iter(test_loader)
+    # cropped_sample, target, coord, nzhw, sample = next(iterator)
 
     # train_loader = DataLoader(
     #     dataset,

@@ -1,7 +1,7 @@
 """
 Incidental trained model:
     -d=methoidstFull --test=False --gpu="2,3"
-    --resume="../detector_ben/results/res18-20201222-095826/024.ckpt" --start-epoch=24 --best_loss=0.2370
+    --resume="../detector_ben/results/res18-20201202-112441/026.ckpt" --start-epoch=0 --best_loss=0.3076
 Low-dose LUNA16 trained model:
     -d=lunaRaw --test=False --gpu="4,5,6,7"
     --resume="../detector_ben/results/res18-20201223-115306/038.ckpt" --start-epoch=38 --best_loss=0.1206
@@ -10,7 +10,7 @@ Low-dose LUNA16 trained model:
 
 Run inference:
     -d=methoidstFull --inference=True --gpu="0"
-    --resume="../detector_ben/results/res18-20201222-095826/024.ckpt"
+    --resume="../detector_ben/results/res18-20210105-171908/050.ckpt"
 """
 
 import sys
@@ -75,9 +75,7 @@ parser.add_argument("--save-freq", default="1", type=int, metavar="S",
 # parser.add_argument("--resume", default="resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
 # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
-# parser.add_argument("--resume", default="../detector_ben/results/res18-20201222-095826/024.ckpt",
 parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
-# parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/032.ckpt",
                     type=str, metavar="PATH",
                     help="path to latest checkpoint (default: none)")
 parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
@@ -177,36 +175,6 @@ def main():
         config = IncidentalConfig()
         Dataset = MethodistFull
 
-
-    ## Construct model
-    if args.model == "res18":
-        import detector_ben.res18 as model
-        net, loss, get_pbb = model.get_model(config)
-    net = net.cuda()
-    loss = loss.cuda()
-    net = DataParallel(net)
-    # model = import_module(args.model)
-
-
-    ## Load saved model
-    start_epoch = args.start_epoch
-    if args.resume:
-        checkpoint = torch.load(args.resume)
-        state_dict = checkpoint["state_dict"]
-        try:
-            net.load_state_dict(state_dict)
-        except RuntimeError:
-            from collections import OrderedDict
-            new_state_dict = OrderedDict()
-            for k, v in state_dict.items():
-                name = "module." + k  # add "module." for dataparallel
-                new_state_dict[name] = v
-            net.load_state_dict(new_state_dict)
-
-        print("Load successfully from " + args.resume)
-    if start_epoch == 0:
-        start_epoch = 1
-
     ## Specify the save directory
     save_dir = args.save_dir
     if not save_dir:
@@ -259,6 +227,34 @@ def main():
     best_loss = args.best_loss
     # writer.add_graph(net, (torch.zeros(2, 1, 96, 96, 96), torch.zeros(2, 3, 24, 24, 24)))
 
+    ## Construct model
+    if args.model == "res18":
+        import detector_ben.res18 as model
+        net, loss, get_pbb = model.get_model(config)
+    net = net.cuda()
+    loss = loss.cuda()
+    net = DataParallel(net)
+    # model = import_module(args.model)
+
+
+    ## Load saved model
+    start_epoch = args.start_epoch
+    if args.resume:
+        checkpoint = torch.load(args.resume)
+        state_dict = checkpoint["state_dict"]
+        try:
+            net.load_state_dict(state_dict)
+        except RuntimeError:
+            from collections import OrderedDict
+            new_state_dict = OrderedDict()
+            for k, v in state_dict.items():
+                name = "module." + k  # add "module." for dataparallel
+                new_state_dict[name] = v
+            net.load_state_dict(new_state_dict)
+
+        print("Load successfully from " + args.resume)
+    if start_epoch == 0:
+        start_epoch = 1
 
     ## Run inference
     if args.inference:
