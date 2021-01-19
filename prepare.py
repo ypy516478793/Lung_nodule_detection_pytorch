@@ -740,7 +740,8 @@ def change_root_info(dst_dir):
 
 
 if __name__=='__main__':
-    preprocess_luna()
+    # preprocess_luna()
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
+    dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
-    # change_root_info(dst_dir)
+    change_root_info(dst_dir)

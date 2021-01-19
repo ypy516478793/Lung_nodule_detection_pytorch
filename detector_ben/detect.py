@@ -1,6 +1,6 @@
 """
 Incidental trained model:
-    -d=methoidstFull --test=False --gpu="2,3"
+    -d=methodistFull --test=False --gpu="2,3"
     --resume="../detector_ben/results/res18-20201202-112441/026.ckpt" --start-epoch=0 --best_loss=0.3076
 Low-dose LUNA16 trained model:
     -d=lunaRaw --test=False --gpu="4,5,6,7"
@@ -9,7 +9,7 @@ Low-dose LUNA16 trained model:
 
 
 Run inference:
-    -d=methoidstFull --inference=True --gpu="0"
+    -d=methodistFull --inference=True --gpu="0"
     --resume="../detector_ben/results/res18-20210105-171908/050.ckpt"
 """
 
@@ -51,7 +51,7 @@ import os
 
 parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
 parser.add_argument("--datasource", "-d", type=str, default="lunaRaw",
-                    help="luna, lunaRaw, methoidstPilot, methoidstFull, additional")
+                    help="luna, lunaRaw, methoidstPilot, methodistFull, additional")
 parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
 # parser.add_argument("--config", "-c", default="config_methodistFull", type=str)
 parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
@@ -75,7 +75,8 @@ parser.add_argument("--save-freq", default="1", type=int, metavar="S",
 # parser.add_argument("--resume", default="resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
 # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
-parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
+# parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
+parser.add_argument("--resume", default="../detector_ben/results/res18-20210106-112050_incidental/001.ckpt",
                     type=str, metavar="PATH",
                     help="path to latest checkpoint (default: none)")
 parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
@@ -145,7 +146,7 @@ from torch.nn import DataParallel
 #                 if f.endswith("_clean.npy") and f[:-10] not in config_training["black_list"]:
 #                     testfilelist.append(folder + "/" + f[:-10])
 #
-#     elif datasource == "methoidstFull":
+#     elif datasource == "methodistFull":
 #         imageInfo = np.load("/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/CTinfo.npz",
 #                             allow_pickle=True)["info"]
 #         # s = imageInfo[0]["imagePath"].find("Lung_patient")
@@ -170,7 +171,7 @@ def main():
     elif args.datasource == "luna":
         # Dataset = datald.luna
         pass
-    elif args.datasource == "methoidstFull":
+    elif args.datasource == "methodistFull":
         from dataLoader.methodistFull import MethodistFull, IncidentalConfig
         config = IncidentalConfig()
         Dataset = MethodistFull
@@ -795,7 +796,8 @@ def inference(data_loader, net, get_pbb, save_dir, config):
         n_show = np.min([len(pbb_infer), 10])
         for j in range(n_show):
             fig = stack_nodule(img_infer, pbb_infer[j][1:5], prob=pbb_infer[j][0], show_every=1)
-            plt.savefig(os.path.join(save_dir, name, "pred{:s}_{:d}.svg".format(ori_str, j)))
+            plt.savefig(os.path.join(save_dir, name, "pred{:s}_{:d}.png".format(ori_str, j)),
+                        bbox_inches="tight", dpi=200)
             plt.close(fig)
             plot_bbox(os.path.join(save_dir, name, "pred{:s}_{:d}".format(ori_str, j)), img_infer, pbb_infer[j][1:5], show=False)
         np.save(os.path.join(save_dir, name, "pbb{:s}.npy".format(ori_str)), pbb_infer)
