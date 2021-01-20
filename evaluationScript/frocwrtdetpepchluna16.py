@@ -9,10 +9,10 @@ from multiprocessing import Pool
 import functools
 import SimpleITK as sitk
 fold = 9
-# annotations_filename = # path for ground truth annotations for the fold
-# annotations_excluded_filename = # path for excluded annotations for the fold
-# seriesuids_filename = # path for seriesuid for the fold
-# results_path = #val' #val' ft96'+'/val'#
+annotations_filename = "annotations_filename" # path for ground truth annotations for the fold
+annotations_excluded_filename = "annotations_excluded_filename" # path for excluded annotations for the fold
+seriesuids_filename = "seriesuids_filename" # path for seriesuid for the fold
+results_path = "results_path" #val' #val' ft96'+'/val'#
 sideinfopath = '/media/data1/wentao/tianchi/luna16/preprocess/lunaall/'#subset'+str(fold)+'/'  +str(fold)
 datapath = '/media/data1/wentao/tianchi/luna16/lunaall/'#subset'+str(fold)+'/'
 
@@ -114,11 +114,12 @@ def convertcsv(bboxfname, bboxpath, detp):
     # print len(rowlist), len(rowlist[0])
     return rowlist#bboxfname[:-8], pos[:K, 2], pos[:K, 1], pos[:K, 0], 1/(1+np.exp(-pbb[:K,0]))
 def getfrocvalue(results_filename):
-    return noduleCADEvaluation(annotations_filename,annotations_excluded_filename,seriesuids_filename,results_filename,'./', vis=isvis)#vis=False)
-p = Pool(nprocess)
+    # return noduleCADEvaluation(annotations_filename,annotations_excluded_filename,seriesuids_filename,results_filename,'./', vis=isvis)#vis=False)
+    return noduleCADEvaluation(annotations_filename,annotations_excluded_filename,seriesuids_filename,results_filename,'./')#vis=False)
+# p = Pool(nprocess)
 def getcsv(detp, eps):
     for ep in eps:
-    	bboxpath = results_path + str(ep) + '/'
+        bboxpath = results_path + str(ep) + '/'
         for detpthresh in detp:
             print('ep', ep, 'detp', detpthresh)
             f = open(bboxpath + 'predanno'+ str(detpthresh) + 'd3.csv', 'w')
@@ -133,7 +134,10 @@ def getcsv(detp, eps):
                         # fwriter.writerow(row)
             # # return
             print((len(fnamelist)))
-            predannolist = p.map(functools.partial(convertcsv, bboxpath=bboxpath, detp=detpthresh), fnamelist) 
+            predannolist = []
+            for f in fnamelist:
+                predannolist.append(convertcsv(f, bboxpath=bboxpath, detp=detpthresh))
+            # predannolist = p.map(functools.partial(convertcsv, bboxpath=bboxpath, detp=detpthresh), fnamelist)
             # print len(predannolist), len(predannolist[0])
             for predanno in predannolist:
                 # print predanno
@@ -146,11 +150,14 @@ def getfroc(detp, eps):
     maxfroc = 0
     maxep = 0
     for ep in eps:
-    	bboxpath = results_path + str(ep) + '/'
+        bboxpath = results_path + str(ep) + '/'
         predannofnamalist = []
         for detpthresh in detp:
             predannofnamalist.append(bboxpath + 'predanno'+ str(detpthresh) + '.csv')
-        froclist = p.map(getfrocvalue, predannofnamalist)
+        # froclist = p.map(getfrocvalue, predannofnamalist)
+        froclist = []
+        for predannofile in predannofnamalist:
+            froclist.append(getfrocvalue(predannofile))
         if maxfroc < max(froclist):
             maxep = ep
             maxfroc = max(froclist)
@@ -162,7 +169,7 @@ def getfroc(detp, eps):
             print('ep', ep, 'detp', detpthresh, froclist[int((detpthresh-detp[0])/(detp[1]-detp[0]))])
     print(maxfroc, maxep)
 getfroc(detp, eps)
-p.close()
+# p.close()
 fig = plt.imshow(frocarr.T)
 plt.colorbar()
 plt.xlabel('# Epochs')
