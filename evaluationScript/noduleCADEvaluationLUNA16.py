@@ -9,6 +9,7 @@ import sklearn.metrics as skl_metrics
 import numpy as np
 
 from NoduleFinding import NoduleFinding
+from tqdm import tqdm
 
 from tools import csvTools
 # matplotlib.rc('xtick', labelsize=18) 
@@ -165,7 +166,7 @@ def evaluateCAD(seriesUIDs, results_filename, outputDir, allNodules, CADSystemNa
 
     allCandsCAD = {}
     
-    for seriesuid in seriesUIDs:
+    for seriesuid in tqdm(seriesUIDs):
         
         # collect candidates from result file
         nodules = {}
