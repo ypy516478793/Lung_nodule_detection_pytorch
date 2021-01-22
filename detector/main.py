@@ -48,12 +48,12 @@ parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)')
 parser.add_argument('--save-freq', default='1', type=int, metavar='S',
                     help='save frequency')
-# parser.add_argument('--resume', default='resmodel/res18fd9020.ckpt', type=str, metavar='PATH',
-parser.add_argument('--resume', default='/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20201020-113114/030.ckpt', type=str, metavar='PATH',
+parser.add_argument('--resume', default='resmodel/res18fd9020.ckpt', type=str, metavar='PATH',
+# parser.add_argument('--resume', default='/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20201020-113114/030.ckpt', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--save-dir', default='', type=str, metavar='SAVE',
                     help='directory to save checkpoint (default: none)')
-parser.add_argument('--test', default=0, type=int, metavar='TEST',
+parser.add_argument('--test', default=1, type=int, metavar='TEST',
                     help='1 do test evaluation, 0 not')
 parser.add_argument('--testthresh', default=-3, type=float,
                     help='threshod for get pbb')
@@ -404,7 +404,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
         
         s = time.time()
         data1=[np.asarray(d, np.float32) for d in data]
-        print("Shape of input: "+str(np.array(data1).shape))
+        # print("Shape of input: "+str(np.array(data1).shape))
         target = [np.asarray(t, np.float32) for t in target]
         print("TARGET IS: "+ str(target))
         lbb = target[0]

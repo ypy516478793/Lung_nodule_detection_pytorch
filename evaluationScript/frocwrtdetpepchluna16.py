@@ -12,12 +12,16 @@ fold = 9
 annotations_filename = "annotations_filename" # path for ground truth annotations for the fold
 annotations_excluded_filename = "annotations_excluded_filename" # path for excluded annotations for the fold
 seriesuids_filename = "seriesuids_filename" # path for seriesuid for the fold
-results_path = "results_path" #val' #val' ft96'+'/val'#
-sideinfopath = '/media/data1/wentao/tianchi/luna16/preprocess/lunaall/'#subset'+str(fold)+'/'  +str(fold)
-datapath = '/media/data1/wentao/tianchi/luna16/lunaall/'#subset'+str(fold)+'/'
+results_path = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210121-145223/bbox/" #val' #val' ft96'+'/val'#
+# sideinfopath = '/media/data1/wentao/tianchi/luna16/preprocess/lunaall/'#subset'+str(fold)+'/'  +str(fold)
+sideinfopath = '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/data/preprocessed/subset9/'#subset'+str(fold)+'/'  +str(fold)
+# datapath = '/media/data1/wentao/tianchi/luna16/lunaall/'#subset'+str(fold)+'/'
+datapath = '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/data/raw_files/subset9/'#subset'+str(fold)+'/'
 
-maxeps = 150 #03 #150 #100#100
-eps = list(range(1, maxeps+1, 1))#6,7,1)#5,151,5)#5,151,5)#76,77,1)#40,41,1)#76,77,1)#1,101,1)#17,18,1)#38,39,1)#1, maxeps+1, 1) #maxeps+1, 1)
+# maxeps = 150 #03 #150 #100#100
+maxeps = 1 #03 #150 #100#100
+# eps = list(range(1, maxeps+1, 1))#6,7,1)#5,151,5)#5,151,5)#76,77,1)#40,41,1)#76,77,1)#1,101,1)#17,18,1)#38,39,1)#1, maxeps+1, 1) #maxeps+1, 1)
+eps = [0]
 detp = [-1.5, -1]#, -0.5, 0]#, 0.5, 1]#, 0.5, 1] #range(-1, 0, 1)
 isvis = False #True
 nmsthresh = 0.1
@@ -119,7 +123,8 @@ def getfrocvalue(results_filename):
 # p = Pool(nprocess)
 def getcsv(detp, eps):
     for ep in eps:
-        bboxpath = results_path + str(ep) + '/'
+        # VoxelToWorldCoord = results_path + str(ep) + '/'
+        bboxpath = results_path
         for detpthresh in detp:
             print('ep', ep, 'detp', detpthresh)
             f = open(bboxpath + 'predanno'+ str(detpthresh) + 'd3.csv', 'w')
@@ -145,7 +150,7 @@ def getcsv(detp, eps):
                     # print row
                     fwriter.writerow(row)
             f.close()
-# getcsv(detp, eps)
+getcsv(detp, eps)
 def getfroc(detp, eps):
     maxfroc = 0
     maxep = 0

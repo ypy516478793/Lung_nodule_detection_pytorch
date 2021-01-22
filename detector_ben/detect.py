@@ -575,7 +575,8 @@ def test(data_loader, net, get_pbb, save_dir, config):
         print("TARGET IS: " + str(target))
         lbb = target[0]
         nzhw = nzhw[0]
-        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0]  # .split("-")[0]  wentao change
+        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].strip(".npz")   # .split("-")[0]  wentao change
+        namelist.append(name)
         data = data[0][0]
         coord = coord[0][0]
         imgs = imgs[0]
@@ -724,6 +725,7 @@ def inference(data_loader, net, get_pbb, save_dir, config):
         print("Shape of input: " + str(np.array(data1).shape))
         nzhw = nzhw[0]
         name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].strip(".npz")  # .split("-")[0]  wentao change
+        namelist.append(name)
         print("Patient MRN-date: ", name)
 
         # if name != "1.3.6.1.4.1.14519.5.2.1.6279.6001.340158437895922179455019686521_image":
@@ -817,7 +819,7 @@ def inference(data_loader, net, get_pbb, save_dir, config):
                 f.write("\n")
             f.close()
 
-    # np.save(os.path.join(save_dir, "namelist.npy"), namelist)
+    np.save(os.path.join(save_dir, "namelist.npy"), namelist)
     end_time = time.time()
     print("elapsed time is %3.2f seconds" % (end_time - start_time))
 
