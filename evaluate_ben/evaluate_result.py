@@ -72,7 +72,7 @@ def convertcsv(bboxfname, result_dir, detp):
     pbb = nms(pbbold, nmsthresh)
     # print len(pbb), pbb[0]
     # print bboxfname, pbbold.shape, pbb.shape, pbbold.shape
-    pbb = np.array(pbb[:, :-1])
+    # pbb = np.array(pbb[:, :-1])
     # print pbb[:, 0]
     # pbb[:, 1:] = np.array(pbb[:, 1:] + np.expand_dims(extendbox[:,0], 1).T)
     # pbb[:, 1:] = np.array(pbb[:, 1:] * np.expand_dims(resolution, 1).T / np.expand_dims(spacing, 1).T)
@@ -84,12 +84,12 @@ def convertcsv(bboxfname, result_dir, detp):
     rowlist = []
     # print pos.shape
     for nk in range(pbb.shape[0]): # pos[nk, 2], pos[nk, 1], pos[nk, 0]
-        rowlist.append([bboxfname[:-8], pbb[nk, 3], pbb[nk, 2], pbb[nk, 1], 1/(1+np.exp(-pbb[nk,0]))])
+        rowlist.append([bboxfname[:-8], pbb[nk, 3], pbb[nk, 2], pbb[nk, 1], pbb[nk, 4], 1/(1+np.exp(-pbb[nk,0]))])
     # print len(rowlist), len(rowlist[0])
     return rowlist#bboxfname[:-8], pos[:K, 2], pos[:K, 1], pos[:K, 0], 1/(1+np.exp(-pbb[:K,0]))
 
 def getcsv(detp, nmsthresh, ostr):
-    firstline = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'probability']
+    firstline = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'probability']
     bbox_dir = result_dir + "bbox/"
     for nmsth in nmsthresh:
         for detpthresh in detp:
@@ -107,7 +107,7 @@ def getcsv(detp, nmsthresh, ostr):
             # # return
             print((len(fnamelist)))
             predannolist = []
-            for fname in fnamelist:
+            for fname in tqdm(fnamelist):
                 predannolist.append(convertcsv(fname, result_dir=bbox_dir, detp=detpthresh))
             # predannolist = p.map(functools.partial(convertcsv, result_dir=bbox_dir, detp=detpthresh), fnamelist)
             # print len(predannolist), len(predannolist[0])
@@ -275,29 +275,61 @@ def evaluateCAD(seriesUIDs, results_path, outputDir, allNodules, CADSystemName, 
 
             found = False
             noduleMatches = []
-            for key, candidate in candidates.items():
-                x2 = float(candidate.coordX)
-                y2 = float(candidate.coordY)
-                z2 = float(candidate.coordZ)
-                dist = np.power(x - x2, 2.) + np.power(y - y2, 2.) + np.power(z - z2, 2.)
-                if dist < radiusSquared:
-                    if (noduleAnnot.state == "Included"):
-                        found = True
-                        noduleMatches.append(candidate)
-                        if key not in list(candidates2.keys()):
-                            print(
-                                "This is strange: CAD mark %s detected two nodules! Check for overlapping nodule annotations, SeriesUID: %s, nodule Annot ID: %s" % (
-                                str(candidate.id), seriesuid, str(noduleAnnot.id)))
-                        else:
-                            del candidates2[key]
-                    elif (noduleAnnot.state == "Excluded"):  # an excluded nodule
-                        if bOtherNodulesAsIrrelevant:  # delete marks on excluded nodules so they don't count as false positives
+
+            if IOU_TH is not None:
+                best_score = 0
+                for key, candidate in candidates.items():
+                    x2 = float(candidate.coordX)
+                    y2 = float(candidate.coordY)
+                    z2 = float(candidate.coordZ)
+                    d2 = float(candidate.diameter_mm)
+
+                    box0 = np.array([x, y, z, diameter])
+                    box1 = np.array([x2, y2, z2, d2])
+                    score = iou(box0, box1)
+                    if score >= IOU_TH:
+                        if score > best_score:
+                            found = True
+                            best_score = score
+                            noduleMatches.append(candidate)
+                            if key not in list(candidates2.keys()):
+                                print(
+                                    "This is strange: CAD mark %s detected two nodules! Check for overlapping nodule annotations, SeriesUID: %s, nodule Annot ID: %s" % (
+                                    str(candidate.id), seriesuid, str(noduleAnnot.id)))
+                            else:
+                                del candidates2[key]
+                        else:  # an excluded nodule
                             if key in list(candidates2.keys()):
                                 irrelevantCandidates += 1
                                 ignoredCADMarksList.append("%s,%s,%s,%s,%s,%s,%.9f" % (
                                 seriesuid, -1, candidate.coordX, candidate.coordY, candidate.coordZ, str(candidate.id),
                                 float(candidate.CADprobability)))
                                 del candidates2[key]
+            else:
+
+                for key, candidate in candidates.items():
+                    x2 = float(candidate.coordX)
+                    y2 = float(candidate.coordY)
+                    z2 = float(candidate.coordZ)
+                    dist = np.power(x - x2, 2.) + np.power(y - y2, 2.) + np.power(z - z2, 2.)
+                    if dist < radiusSquared:
+                        if (noduleAnnot.state == "Included"):
+                            found = True
+                            noduleMatches.append(candidate)
+                            if key not in list(candidates2.keys()):
+                                print(
+                                    "This is strange: CAD mark %s detected two nodules! Check for overlapping nodule annotations, SeriesUID: %s, nodule Annot ID: %s" % (
+                                    str(candidate.id), seriesuid, str(noduleAnnot.id)))
+                            else:
+                                del candidates2[key]
+                        elif (noduleAnnot.state == "Excluded"):  # an excluded nodule
+                            if bOtherNodulesAsIrrelevant:  # delete marks on excluded nodules so they don't count as false positives
+                                if key in list(candidates2.keys()):
+                                    irrelevantCandidates += 1
+                                    ignoredCADMarksList.append("%s,%s,%s,%s,%s,%s,%.9f" % (
+                                    seriesuid, -1, candidate.coordX, candidate.coordY, candidate.coordZ, str(candidate.id),
+                                    float(candidate.CADprobability)))
+                                    del candidates2[key]
             if len(noduleMatches) > 1:  # double detection
                 doubleCandidatesIgnored += (len(noduleMatches) - 1)
             if noduleAnnot.state == "Included":
@@ -571,11 +603,13 @@ if __name__ == '__main__':
 
     detp = [0]
     nmsthresh = [0.1]
-    # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/"
-    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/"
+    IOU_TH = 0.2
+    # IOU_TH = None
+    # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/"   ## fine-tuned on methodist data
+    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/"    ## trained on luna
 
     outputDir = result_dir
-    getcsv(detp, nmsthresh, "luna")
+    # getcsv(detp, nmsthresh, "luna_IOU0.2")
 
 
     data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
@@ -583,7 +617,7 @@ if __name__ == '__main__':
     info_file = "CTinfo.npz"
 
     seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")
-    result_file = "luna_detp0_nms0.1.csv"
+    result_file = "luna_IOU0.2_detp0_nms0.1.csv"
     results_path = os.path.join(result_dir, "bbox", result_file)
     noduleCADEvaluation(seriesuids_path)
 

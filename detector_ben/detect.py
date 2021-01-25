@@ -658,6 +658,12 @@ def test(data_loader, net, get_pbb, save_dir, config):
             feature_selected = feature[mask[0], mask[1], mask[2]]
             np.save(os.path.join(save_dir, name + "_feature.npy"), feature_selected)
 
+        delete_row = []
+        for row, pi in enumerate(pbb):
+            if np.any(pi[1:4] >= imgs[0].shape):
+                delete_row.append(row)
+        pbb = np.delete(pbb, delete_row, 0)
+
         tp, fp, fn, _ = acc(pbb, lbb, 4, 0.5, 0.5)
         tps = np.array(tp)
         fps = np.array(fp)
@@ -791,7 +797,7 @@ def inference(data_loader, net, get_pbb, save_dir, config):
 
         delete_row = []
         for row, pi in enumerate(pbb_infer):
-            if np.any(pi[1:4] >= img_infer.shape[0]):
+            if np.any(pi[1:4] >= img_infer.shape):
                 delete_row.append(row)
         pbb_infer = np.delete(pbb_infer, delete_row, 0)
 
