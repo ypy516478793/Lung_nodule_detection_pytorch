@@ -3,6 +3,9 @@ from scipy.ndimage.interpolation import rotate
 from dataLoader.dataBase import LabelMapping, Crop, collate
 from dataLoader.splitCombine import SplitComb
 from torch.utils.data import Dataset
+from sklearn.cluster import KMeans
+from skimage import morphology
+from skimage import measure
 import pandas as pd
 import numpy as np
 import torch
@@ -50,6 +53,7 @@ class IncidentalConfig(object):
     MARGIN = 32
 
     ORIGIN_SCALE = False
+    MASK_LUNG = True
 
     def display(self):
         """Display Configuration values."""
@@ -77,6 +81,91 @@ def lumTrans(img):
     newimg = (newimg*255).astype("uint8")
     return newimg
 
+def mask_scan(images):
+    masked_images = []
+    for img in images:
+        masked_images.append(make_lungmask(img))
+    masked_images = np.stack(masked_images)
+    return masked_images
+    # plt.imshow(images[10])
+    # print("Images{:d} shape: ".format(imageId), images.shape)
+
+def make_lungmask(img, display=False):
+    raw_img = np.copy(img)
+    row_size = img.shape[0]
+    col_size = img.shape[1]
+
+    mean = np.mean(img)
+    std = np.std(img)
+    img = img - mean
+    img = img / std
+    # Find the average pixel value near the lungs
+    # to renormalize washed out images
+    middle = img[int(col_size / 5):int(col_size / 5 * 4), int(row_size / 5):int(row_size / 5 * 4)]
+    mean = np.mean(middle)
+    max = np.max(img)
+    min = np.min(img)
+    # To improve threshold finding, I'm moving the
+    # underflow and overflow on the pixel spectrum
+    img[img == max] = mean
+    img[img == min] = mean
+    #
+    # Using Kmeans to separate foreground (soft tissue / bone) and background (lung/air)
+    #
+    kmeans = KMeans(n_clusters=2).fit(np.reshape(middle, [np.prod(middle.shape), 1]))
+    centers = sorted(kmeans.cluster_centers_.flatten())
+    threshold = np.mean(centers)
+    thresh_img = np.where(img < threshold, 1.0, 0.0)  # threshold the image
+
+    # First erode away the finer elements, then dilate to include some of the pixels surrounding the lung.
+    # We don't want to accidentally clip the lung.
+
+    eroded = morphology.erosion(thresh_img, np.ones([3, 3]))
+    dilation = morphology.dilation(eroded, np.ones([8, 8]))
+
+    labels = measure.label(dilation)  # Different labels are displayed in different colors
+    label_vals = np.unique(labels)
+    regions = measure.regionprops(labels)
+    good_labels = []
+    for prop in regions:
+        B = prop.bbox
+        if B[2] - B[0] < row_size / 10 * 9 and B[3] - B[1] < col_size / 10 * 9 and B[0] > row_size / 10 and B[
+            2] < col_size / 10 * 9:
+            good_labels.append(prop.label)
+    mask = np.ndarray([row_size, col_size], dtype=np.int8)
+    mask[:] = 0  # mask = np.zeros([row_size, col_size], dtype=np.int8)
+
+    #
+    #  After just the lungs are left, we do another large dilation
+    #  in order to fill in and out the lung mask
+    #
+    for N in good_labels:
+        mask = mask + np.where(labels == N, 1, 0)
+    mask = morphology.dilation(mask, np.ones([10, 10]))  # one last dilation
+
+    if (display):
+        fig, ax = plt.subplots(3, 2, figsize=[12, 12])
+        ax[0, 0].set_title("Original")
+        ax[0, 0].imshow(img, cmap='gray')
+        ax[0, 0].axis('off')
+        ax[0, 1].set_title("Threshold")
+        ax[0, 1].imshow(thresh_img, cmap='gray')
+        ax[0, 1].axis('off')
+        ax[1, 0].set_title("After Erosion and Dilation")
+        ax[1, 0].imshow(dilation, cmap='gray')
+        ax[1, 0].axis('off')
+        ax[1, 1].set_title("Color Labels")
+        ax[1, 1].imshow(labels)
+        ax[1, 1].axis('off')
+        ax[2, 0].set_title("Final Mask")
+        ax[2, 0].imshow(mask, cmap='gray')
+        ax[2, 0].axis('off')
+        ax[2, 1].set_title("Apply Mask on Original")
+        ax[2, 1].imshow(mask * img, cmap='gray')
+        ax[2, 1].axis('off')
+
+        plt.show()
+    return mask * img
 
 def augment(sample, target, bboxes, coord, ifflip=True, ifrotate=True, ifswap=True):
     #                     angle1 = np.random.rand()*180
@@ -141,6 +230,7 @@ class MethodistFull(Dataset):
         self.crop = Crop(config)
         self.label_mapping = LabelMapping(config, subset)
         self.load_subset(subset)
+        self.mask_lung = config.MASK_LUNG
 
     # def screen(self):
     #     '''
@@ -250,9 +340,12 @@ class MethodistFull(Dataset):
 
         if self.subset == "inference":
             temp = np.load(self.filenames[idx], allow_pickle=True)
-            imgs = temp["image"][np.newaxis, :]
-            info = temp["info"]
+            imgs = temp["image"]
             imgs = lumTrans(imgs)
+            if self.mask_lung:
+                imgs = mask_scan(imgs)
+            imgs = imgs[np.newaxis, :]
+            info = temp["info"]
             ori_imgs = np.copy(imgs)
             nz, nh, nw = imgs.shape[1:]
             pz = int(np.ceil(float(nz) / self.stride)) * self.stride
@@ -278,8 +371,11 @@ class MethodistFull(Dataset):
             if not isRandomImg:
                 bbox = self.bboxes[idx]
                 filename = self.filenames[int(bbox[0])]
-                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+                imgs = np.load(filename, allow_pickle=True)["image"]
                 imgs = lumTrans(imgs)
+                if self.mask_lung:
+                    imgs = mask_scan(imgs)
+                imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[int(bbox[0])]
                 # isScale = self.augtype["scale"] and (self.subset == "train")
                 isScale = False
@@ -292,8 +388,11 @@ class MethodistFull(Dataset):
             else:
                 randimid = np.random.randint(len(self.kagglenames))
                 filename = self.kagglenames[randimid]
-                imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+                imgs = np.load(filename, allow_pickle=True)["image"]
                 imgs = lumTrans(imgs)
+                if self.mask_lung:
+                    imgs = mask_scan(imgs)
+                imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[randimid]
                 isScale = self.augtype["scale"] and (self.subset == "train")
                 sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale=False, isRand=True)
@@ -304,8 +403,11 @@ class MethodistFull(Dataset):
             #    label[label==-1]=0
             return torch.from_numpy(sample), torch.from_numpy(label), coord, target
         else:
-            imgs = np.load(self.filenames[idx], allow_pickle=True)["image"][np.newaxis, :]
+            imgs = np.load(self.filenames[idx], allow_pickle=True)["image"]
             imgs = lumTrans(imgs)
+            if self.mask_lung:
+                imgs = mask_scan(imgs)
+            imgs = imgs[np.newaxis, :]
             ori_imgs = np.copy(imgs)
             bboxes = self.sample_bboxes[idx]
             nz, nh, nw = imgs.shape[1:]
