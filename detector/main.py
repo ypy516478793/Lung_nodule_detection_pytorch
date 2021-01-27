@@ -410,6 +410,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
         lbb = target[0]
         nzhw = nzhw[0]
         name = data_loader.dataset.filenames[i_name].split('/')[-1].split('_clean')[0] #.split('-')[0]  wentao change
+        namelist.append(name)
         data = data[0][0]
         coord = coord[0][0]
         isfeat = False

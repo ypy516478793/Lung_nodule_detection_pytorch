@@ -50,7 +50,7 @@ import os
 # from detector.layers import acc
 
 parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
-parser.add_argument("--datasource", "-d", type=str, default="lunaRaw",
+parser.add_argument("--datasource", "-d", type=str, default="luna",
                     help="luna, lunaRaw, methoidstPilot, methodistFull, additional")
 parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
 # parser.add_argument("--config", "-c", default="config_methodistFull", type=str)
@@ -72,12 +72,12 @@ parser.add_argument("--weight-decay", "--wd", default=1e-4, type=float,
                     metavar="W", help="weight decay (default: 1e-4)")
 parser.add_argument("--save-freq", default="1", type=int, metavar="S",
                     help="save frequency")
-# parser.add_argument("--resume", default="resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
+parser.add_argument("--resume", default="../detector/resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
 # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
-parser.add_argument("--resume", default="../detector_ben/results/res18-20210106-112050_incidental/001.ckpt",
-                    type=str, metavar="PATH",
+# parser.add_argument("--resume", default="../detector_ben/results/res18-20210106-112050_incidental/001.ckpt",
+#                     type=str, metavar="PATH",
                     help="path to latest checkpoint (default: none)")
 parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
                     help="directory to save checkpoint (default: none)")
@@ -170,7 +170,9 @@ def main():
         Dataset = LunaRaw
     elif args.datasource == "luna":
         # Dataset = datald.luna
-        pass
+        from dataLoader.luna import Luna, LunaConfig
+        config = LunaConfig()
+        Dataset = Luna
     elif args.datasource == "methodistFull":
         from dataLoader.methodistFull import MethodistFull, IncidentalConfig
         config = IncidentalConfig()
@@ -678,10 +680,11 @@ def test(data_loader, net, get_pbb, save_dir, config):
                               fig, global_step=i_name)
 
         print("FP: ")
-        print(fps[0])
-        fig = stack_nodule(imgs[0], fps[0][1:5])
-        writer.add_figure("FP images",
-                          fig, global_step=i_name)
+        print(fps[:2])
+        if len(fps) > 0:
+            fig = stack_nodule(imgs[0], fps[0][1:5])
+            writer.add_figure("FP images",
+                              fig, global_step=i_name)
 
         if not os.path.exists(os.path.join(save_dir, name + "_tp.txt")):
             with open(os.path.join(save_dir, name + "_tp.txt"), "a+") as f:

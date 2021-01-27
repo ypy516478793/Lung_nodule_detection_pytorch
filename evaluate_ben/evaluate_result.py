@@ -603,10 +603,12 @@ if __name__ == '__main__':
 
     detp = [0]
     nmsthresh = [0.1]
-    IOU_TH = 0.2
+    # IOU_TH = 0.2
+    IOU_TH = None
     # IOU_TH = None
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/"   ## fine-tuned on methodist data
-    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/"    ## trained on luna
+    # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/"    ## trained on lunaRaw
+    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543"    ## trained on luna (pretrained)
 
     outputDir = result_dir
     # getcsv(detp, nmsthresh, "luna_IOU0.2")
