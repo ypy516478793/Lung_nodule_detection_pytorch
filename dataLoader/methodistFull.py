@@ -450,18 +450,18 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("Visualize", "MethodistFull"))
 
     config = IncidentalConfig()
-    dataset = MethodistFull(config, subset="inference")
+    dataset = MethodistFull(config, subset="train")
 
-    inference_loader = DataLoader(
-        dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        collate_fn=collate,
-        pin_memory=False)
-
-    iterator = iter(inference_loader)
-    cropped_sample, target, coord, nzhw, sample, info = next(iterator)
+    # inference_loader = DataLoader(
+    #     dataset,
+    #     batch_size=1,
+    #     shuffle=False,
+    #     num_workers=0,
+    #     collate_fn=collate,
+    #     pin_memory=False)
+    #
+    # iterator = iter(inference_loader)
+    # cropped_sample, target, coord, nzhw, sample, info = next(iterator)
 
     # test_loader = DataLoader(
     #     dataset,
@@ -474,14 +474,20 @@ if __name__ == "__main__":
     # iterator = iter(test_loader)
     # cropped_sample, target, coord, nzhw, sample = next(iterator)
 
-    # train_loader = DataLoader(
-    #     dataset,
-    #     batch_size=2,
-    #     shuffle=True,
-    #     num_workers=0,
-    #     pin_memory=True)
-    #
-    # iterator = iter(train_loader)
+    train_loader = DataLoader(
+        dataset,
+        batch_size=2,
+        shuffle=True,
+        num_workers=0,
+        pin_memory=True)
+
+    iterator = iter(train_loader)
+    # sample, label, coord, target = next(iterator)
+    from tqdm import tqdm
+    i = 0
+    for sample, label, coord, target in tqdm(iterator):
+        print(i)
+        i += 1
     # sample, label, coord, target = next(iterator)
 
     from detector_ben.utils import stack_nodule
