@@ -97,6 +97,9 @@ def make_lungmask(img, display=False):
 
     mean = np.mean(img)
     std = np.std(img)
+    if std == 0:
+        return np.zeros_like(img)
+
     img = img - mean
     img = img / std
     # Find the average pixel value near the lungs
