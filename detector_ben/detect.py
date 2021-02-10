@@ -182,7 +182,11 @@ def main():
     save_dir = args.save_dir
     if not save_dir:
         exp_id = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-        save_dir = os.path.join("results", args.model + "-" + exp_id)
+        if args.inference:
+            mode_str = "inference"
+        else:
+            mode_str = "test" if args.test else "train"
+        save_dir = os.path.join("results", args.model + "-" + exp_id + "-" + mode_str)
     else:
         save_dir = os.path.join("results", save_dir)
 

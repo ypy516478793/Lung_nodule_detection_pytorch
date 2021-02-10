@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-showid = 1 # from 0 to 4
+showid = 0 # from 0 to 4
 assert showid in range(5)
 
 def lumTrans(img):
@@ -35,51 +35,52 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
 
 
 ## luna detection results
-srslst = ["1.3.6.1.4.1.14519.5.2.1.6279.6001.121108220866971173712229588402",\
-          "1.3.6.1.4.1.14519.5.2.1.6279.6001.124822907934319930841506266464"]
-# srslst = ["1.3.6.1.4.1.14519.5.2.1.6279.6001.102681962408431413578140925249",\
-#           "1.3.6.1.4.1.14519.5.2.1.6279.6001.109882169963817627559804568094"]
+# srslst = ["1.3.6.1.4.1.14519.5.2.1.6279.6001.121108220866971173712229588402",\
+#           "1.3.6.1.4.1.14519.5.2.1.6279.6001.124822907934319930841506266464"]
+# # srslst = ["1.3.6.1.4.1.14519.5.2.1.6279.6001.102681962408431413578140925249",\
+# #           "1.3.6.1.4.1.14519.5.2.1.6279.6001.109882169963817627559804568094"]
+# #
+# data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/data/preprocessed/subset9/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210126-162333/bbox/"
 #
-data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/data/preprocessed/subset9/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210126-162333/bbox/"
-
-ctdat = np.load(data_dir+srslst[showid]+'_clean.npy', allow_pickle=True)
-ctlab = np.load(data_dir+srslst[showid]+'_label.npy', allow_pickle=True)
+# ctdat = np.load(data_dir+srslst[showid]+'_clean.npy', allow_pickle=True)
+# ctlab = np.load(data_dir+srslst[showid]+'_label.npy', allow_pickle=True)
 
 
-# ## results for methodist data
-# srslst = ["032873150-20131110",
-#           "015995871-20160929",
-#           "022467229-20180409",
-#           "028735272-20150702",
-#           "013746417-20130514"]
-# data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-# # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
+## results for methodist data
+srslst = ["032873150-20131110",
+          "015995871-20160929",
+          "022467229-20180409",
+          "028735272-20150702",
+          "013746417-20130514"]
+data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
-# # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543/bbox/"
-#
-# pos_label_file = "pos_labels.csv"
-# info_file = "CTinfo.npz"
-# pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
-# imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
-#
-# patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
-#                  for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
-# imageId = patient2Image[srslst[showid]]
-# filename = imageInfo[imageId]["imagePath"]
-# pstr = imageInfo[imageId]["pstr"]
-# dstr = imageInfo[imageId]["date"]
-# thickness = imageInfo[imageId]["sliceThickness"]
-# spacing = imageInfo[imageId]["pixelSpacing"]
-# existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
-# pos = pos_df[existId]
-# temp = pos[["x", "y", "z", "d"]].values
-# temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
-# ctlab = temp[:, [2, 1, 0, 3]]
-# ctlab[:, 0] = ctlab[:, 0] - 1
-#
-# imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
-# ctdat = lumTrans(imgs)
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543/bbox/"
+
+pos_label_file = "pos_labels.csv"
+info_file = "CTinfo.npz"
+pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
+
+patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
+                 for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
+imageId = patient2Image[srslst[showid]]
+filename = imageInfo[imageId]["imagePath"]
+pstr = imageInfo[imageId]["pstr"]
+dstr = imageInfo[imageId]["date"]
+thickness = imageInfo[imageId]["sliceThickness"]
+spacing = imageInfo[imageId]["pixelSpacing"]
+existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+pos = pos_df[existId]
+temp = pos[["x", "y", "z", "d"]].values
+temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
+ctlab = temp[:, [2, 1, 0, 3]]
+ctlab[:, 0] = ctlab[:, 0] - 1
+
+imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+ctdat = lumTrans(imgs)
 
 print('Groundtruth')
 print("image shape is: ", ctdat.shape)

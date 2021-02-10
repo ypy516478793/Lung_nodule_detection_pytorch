@@ -13,13 +13,23 @@ import time
 import os
 
 class IncidentalConfig(object):
+    MASK_LUNG = True
+    PET_CT = False
+
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+    if MASK_LUNG:
+        DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+    else:
+        DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
+
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
     POS_LABEL_FILE = "pos_labels.csv"
+    # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
+    # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
     # POS_LABEL_FILE = None
     BLACK_LIST = []
 
@@ -53,7 +63,6 @@ class IncidentalConfig(object):
     MARGIN = 32
 
     ORIGIN_SCALE = False
-    MASK_LUNG = True
 
     def display(self):
         """Display Configuration values."""
@@ -231,21 +240,27 @@ class MethodistFull(Dataset):
         if pos_label_file is not None:
             self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
         self.crop = Crop(config)
+        self.mask_lung = config.MASK_LUNG
+        self.pet_ct = config.PET_CT
+        self.screen()
         self.label_mapping = LabelMapping(config, subset)
         self.load_subset(subset)
-        self.mask_lung = config.MASK_LUNG
 
-    # def screen(self):
-    #     '''
-    #     Remove nodule size >= 60
-    #     '''
-    #     num_images = len(self.imageInfo)
-    #     mask = np.ones(num_images, dtype=bool)
-    #     for imageId in range(num_images):
-    #         pos = self.load_pos(imageId)
-    #         if len(pos) == 0:
-    #             mask[imageId] = False
-    #     self.imageInfo = self.imageInfo[mask]
+    def screen(self):
+        '''
+        Remove nodule size >= 60
+        '''
+        num_images = len(self.imageInfo)
+        mask = np.ones(num_images, dtype=bool)
+        if self.pet_ct is not None:
+            for imageId in range(num_images):
+                info = self.imageInfo[imageId]
+                if (self.pet_ct and info["PET"] == "Y") or (not self.pet_ct and info["PET"] == "N"):
+                    mask[imageId] = False
+                # pos = self.load_pos(imageId)
+                # if len(pos) == 0:
+                #     mask[imageId] = False
+            self.imageInfo = self.imageInfo[mask]
 
     def load_subset(self, subset):
         ## train/val/test split
@@ -262,7 +277,8 @@ class MethodistFull(Dataset):
             elif subset == "val":
                 infos = valInfo
             else:
-                infos = testInfo
+                # infos = testInfo
+                infos = trainInfo
 
         ## Get the file list for current subset
         start = infos[0]["imagePath"].find("Lung_patient")
@@ -344,9 +360,8 @@ class MethodistFull(Dataset):
         if self.subset == "inference":
             temp = np.load(self.filenames[idx], allow_pickle=True)
             imgs = temp["image"]
-            imgs = lumTrans(imgs)
-            if self.mask_lung:
-                imgs = mask_scan(imgs)
+            if not self.mask_lung:
+                imgs = lumTrans(imgs)
             imgs = imgs[np.newaxis, :]
             info = temp["info"]
             ori_imgs = np.copy(imgs)
@@ -375,9 +390,8 @@ class MethodistFull(Dataset):
                 bbox = self.bboxes[idx]
                 filename = self.filenames[int(bbox[0])]
                 imgs = np.load(filename, allow_pickle=True)["image"]
-                imgs = lumTrans(imgs)
-                if self.mask_lung:
-                    imgs = mask_scan(imgs)
+                if not self.mask_lung:
+                    imgs = lumTrans(imgs)
                 imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[int(bbox[0])]
                 # isScale = self.augtype["scale"] and (self.subset == "train")
@@ -392,9 +406,8 @@ class MethodistFull(Dataset):
                 randimid = np.random.randint(len(self.kagglenames))
                 filename = self.kagglenames[randimid]
                 imgs = np.load(filename, allow_pickle=True)["image"]
-                imgs = lumTrans(imgs)
                 if self.mask_lung:
-                    imgs = mask_scan(imgs)
+                    imgs = lumTrans(imgs)
                 imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[randimid]
                 isScale = self.augtype["scale"] and (self.subset == "train")
@@ -407,9 +420,8 @@ class MethodistFull(Dataset):
             return torch.from_numpy(sample), torch.from_numpy(label), coord, target
         else:
             imgs = np.load(self.filenames[idx], allow_pickle=True)["image"]
-            imgs = lumTrans(imgs)
-            if self.mask_lung:
-                imgs = mask_scan(imgs)
+            if not self.mask_lung:
+                imgs = lumTrans(imgs)
             imgs = imgs[np.newaxis, :]
             ori_imgs = np.copy(imgs)
             bboxes = self.sample_bboxes[idx]
