@@ -840,7 +840,7 @@ def make_lungmask(img, display=False):
         ax[2, 1].axis('off')
 
         plt.show()
-    return mask * img
+    return mask * raw_img
 
 
 def mask_scan(images):
@@ -872,22 +872,57 @@ def prepare_masked_images(root_dir, save_dir):
     np.savez_compressed(new_info_path, info=infos)
     print("Save all scan infos to {:s}".format(new_info_path))
 
+def assign_PET_label(dst_dir):
+
+    PET_series = ["CT SLICES 50cm DFOV", "CTAC", "CT SLICES 50cm", "CT SLICES 50 CM", "Lung/Bone+ 50cm"]
+    file = os.path.join(dst_dir, "CTinfo.npz")
+    infos = np.load(file, allow_pickle=True)["info"]
+    # D = {}
+    # for i, a in enumerate(infos):
+    #     if a["series"] not in D:
+    #         D[a["series"]] = []
+    #     D[a["series"]].append(i)
+
+    for i, info in tqdm(enumerate(infos)):
+        series = info["series"]
+        if series in PET_series:
+            info["PET"] = "Y"
+            shape = np.load(info['imagePath'])["image"].shape
+            if not shape[0] >= 500:
+                print("index {:}, series is {:}, shape is {:}".format(i, series, shape))
+        else:
+            info["PET"] = "N"
+            shape = np.load(info['imagePath'])["image"].shape
+            if not shape[0] < 500:
+                print("index {:}, series is {:}, shape is {:}".format(i, series, shape))
+    print(infos)
+
+    import shutil
+    shutil.move(file, os.path.join(dst_dir, "CTinfo_old.npz"))
+    np.savez_compressed(file, info=infos)
+    print("Save all scan infos to {:s}".format(file))
+
 
 if __name__ == '__main__':
     # preprocess_luna()
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
+
+    # dst_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+
     # change_root_info(dst_dir)
+    # assign_PET_label(dst_dir)
 
-    root_dir = ""
-
-    save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_first/"
-    root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/labeled/"
-    # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_TC/masked_first/"
-    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Incidental_lung/data_TC/labeled/"
-
-    # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
-    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
-
+    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/"
+    root_dir = "/data/pyuan2/Methodist_incidental/"
+    #
+    save_dir = os.path.join(root_dir, "data_kim/masked_first/")
+    root_dir = os.path.join(root_dir, "data_kim/labeled/")
+    # # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_TC/masked_first/"
+    # # root_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Incidental_lung/data_TC/labeled/"
+    #
+    # # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
+    # # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
+    #
     prepare_masked_images(root_dir, save_dir)

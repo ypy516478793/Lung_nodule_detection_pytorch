@@ -18,6 +18,7 @@ sys.path.append("../")
 
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
+from datetime import datetime
 from copy import deepcopy
 from tqdm import tqdm
 
@@ -195,6 +196,19 @@ def main():
     logfile = os.path.join(save_dir, "log")
     # if args.test != 1:
     sys.stdout = Logger(logfile)
+
+
+    # LOG EXPERIMENT CONFIGURATION
+    bind = lambda x: "--{:s}={:s}".format(str(x[0]), str(x[1]))
+    print("=" * 100)
+    print("Running at: {:s}".format(str(datetime.now())))
+    print("Working in directory: {:s}\n".format(save_dir))
+    print("Run experiments: ")
+    print("python {:s}".format(" ".join(sys.argv)))
+    print("Full arguments: ")
+    print("{:s}\n".format(" ".join([bind(i) for i in vars(args).items()])))
+
+
     config.display()
         # pyfiles = [f for f in os.listdir("./") if f.endswith(".py")]
         # for f in pyfiles:
@@ -414,6 +428,7 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
         #             fig = stack_nodule(data[j, 0].numpy(), target[j].numpy())
         #             writer.add_figure("training images",
         #                               fig, global_step=i)
+        s_time = time.time()
 
         data = Variable(torch.FloatTensor(data).cuda(async=True))
         label = Variable(torch.FloatTensor(label).cuda(async=True))
@@ -427,6 +442,22 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
 
         loss_output[0] = loss_output[0].data.item()
         metrics.append(loss_output)
+        e_time = time.time()
+        t = e_time - s_time
+
+        if isinstance(loss_output[6], torch.Tensor):
+            loss_output[6] = loss_output[6].data.item()
+        if isinstance(loss_output[8], torch.Tensor):
+            loss_output[8] = loss_output[8].data.item()
+        loss_output = np.array(loss_output)
+        print("{}: EPOCH{:03d} Itr{}/{} ({:.2f}s/itr) Train: acc {:3.2f}, tpr {:d}/{:d}={:3.2f}, tnr {:d}/{:d}={:3.2f}, "
+              "loss {:2.4f}, classify loss {:2.4f}, regress loss {:2.4f}, {:2.4f}, {:2.4f}, {:2.4f}".format(
+            datetime.now(), epoch, i + 1, len(data_loader), t,
+            100.0 * np.sum(loss_output[[6, 8]]) / np.sum(loss_output[[7, 9]]),
+            int(loss_output[6]), int(loss_output[7]), 100.0 * np.sum(loss_output[6]) / np.max([np.sum(loss_output[7]), 1]),
+            int(loss_output[8]), int(loss_output[9]), 100.0 * np.sum(loss_output[8]) / np.sum(loss_output[9]),
+            loss_output[0], loss_output[1], loss_output[2], loss_output[3], loss_output[4], loss_output[5])
+        )
 
     # if epoch % args.save_freq == 0:
     #     state_dict = net.module.state_dict()

@@ -238,7 +238,11 @@ class MethodistFull(Dataset):
                                       config.MARGIN, config.PAD_VALUE)
         self.imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
         if pos_label_file is not None:
-            self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+            if pos_label_file.endswith(".csv"):
+                self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"MRN": str, "date": str})
+            else:
+                nskip = 0 if pos_label_file == "gt_labels_checklist.xlsx" else 1
+                self.pos_df = pd.read_excel(os.path.join(data_dir, pos_label_file), skiprows=nskip, dtype={"date": str})
         self.crop = Crop(config)
         self.mask_lung = config.MASK_LUNG
         self.pet_ct = config.PET_CT
@@ -251,16 +255,18 @@ class MethodistFull(Dataset):
         Remove nodule size >= 60
         '''
         num_images = len(self.imageInfo)
+        print("number of CT scans: {:d}".format(num_images))
         mask = np.ones(num_images, dtype=bool)
         if self.pet_ct is not None:
             for imageId in range(num_images):
                 info = self.imageInfo[imageId]
-                if (self.pet_ct and info["PET"] == "Y") or (not self.pet_ct and info["PET"] == "N"):
+                if (self.pet_ct and info["PET"] == "N") or (not self.pet_ct and info["PET"] == "Y"):
                     mask[imageId] = False
                 # pos = self.load_pos(imageId)
                 # if len(pos) == 0:
                 #     mask[imageId] = False
             self.imageInfo = self.imageInfo[mask]
+            print("number of CT scans after screening: {:d}".format(len(self.imageInfo)))
 
     def load_subset(self, subset):
         ## train/val/test split
@@ -277,8 +283,8 @@ class MethodistFull(Dataset):
             elif subset == "val":
                 infos = valInfo
             else:
-                # infos = testInfo
-                infos = trainInfo
+                infos = testInfo
+                # infos = trainInfo
 
         ## Get the file list for current subset
         start = infos[0]["imagePath"].find("Lung_patient")
@@ -334,7 +340,9 @@ class MethodistFull(Dataset):
         thickness, spacing = imgInfo["sliceThickness"], imgInfo["pixelSpacing"]
         pstr = imgInfo["pstr"]
         dstr = imgInfo["date"]
-        existId = (self.pos_df["patient"] == pstr) & (self.pos_df["date"] == dstr)
+        patient_colname = "patient" if "patient" in self.pos_df.columns else 'Patient\n Index'
+        assert patient_colname in self.pos_df
+        existId = (self.pos_df[patient_colname] == pstr) & (self.pos_df["date"] == dstr)
         pos = self.pos_df[existId][["x", "y", "z", "d"]].values
         pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
         pos = pos[:, [2, 1, 0, 3]]

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-showid = 0 # from 0 to 4
+showid = 1 # from 0 to 4
 assert showid in range(5)
 
 def lumTrans(img):
@@ -48,15 +48,21 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
 
 
 ## results for methodist data
-srslst = ["032873150-20131110",
-          "015995871-20160929",
-          "022467229-20180409",
-          "028735272-20150702",
-          "013746417-20130514"]
-data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+# srslst = ["032873150-20131110",
+#           "015995871-20160929",
+#           "022467229-20180409",
+#           "028735272-20150702",
+#           "013746417-20130514"]
+
+srslst = ["000192476-20160614",
+          "001734722-20130821"]
+# data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+# data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
+data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/bbox/"
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-122426-test/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543/bbox/"
 
 pos_label_file = "pos_labels.csv"
@@ -80,7 +86,8 @@ ctlab = temp[:, [2, 1, 0, 3]]
 ctlab[:, 0] = ctlab[:, 0] - 1
 
 imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
-ctdat = lumTrans(imgs)
+# ctdat = lumTrans(imgs)
+ctdat = imgs
 
 print('Groundtruth')
 print("image shape is: ", ctdat.shape)
