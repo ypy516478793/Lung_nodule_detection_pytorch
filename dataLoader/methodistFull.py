@@ -14,7 +14,7 @@ import os
 
 class IncidentalConfig(object):
     MASK_LUNG = True
-    PET_CT = False
+    PET_CT = True
 
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"

@@ -1,7 +1,7 @@
 
 cd ../
 
-python detect.py
+python detect.py \
     -d=methodistFull \
     --test=True \
     --inference=True \

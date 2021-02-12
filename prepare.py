@@ -864,13 +864,13 @@ def prepare_masked_images(root_dir, save_dir):
         imgs = mask_scan(imgs)
         imgs = lumTrans(imgs)
 
-        info["imagePath"] = save_path
-        np.savez_compressed(save_path, image=imgs, info=info)
-        print("Save masked images to {:s}".format(save_path))
-
-    new_info_path = os.path.join(save_dir, "CTinfo.npz")
-    np.savez_compressed(new_info_path, info=infos)
-    print("Save all scan infos to {:s}".format(new_info_path))
+    #     info["imagePath"] = save_path
+    #     np.savez_compressed(save_path, image=imgs, info=info)
+    #     print("Save masked images to {:s}".format(save_path))
+    #
+    # new_info_path = os.path.join(save_dir, "CTinfo.npz")
+    # np.savez_compressed(new_info_path, info=infos)
+    # print("Save all scan infos to {:s}".format(new_info_path))
 
 def assign_PET_label(dst_dir):
 
