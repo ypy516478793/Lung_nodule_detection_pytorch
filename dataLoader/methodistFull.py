@@ -13,12 +13,16 @@ import time
 import os
 
 class IncidentalConfig(object):
+    MASK_CROP = True
     MASK_LUNG = True
-    PET_CT = True
+    PET_CT = False
 
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-    if MASK_LUNG:
+    if MASK_CROP:
+        DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
+        assert MASK_LUNG
+    elif MASK_LUNG:
         DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
     else:
         DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
@@ -307,6 +311,20 @@ class MethodistFull(Dataset):
                 info = self.search_info(filePath)
                 assert info != -1, "No matched info!!"
                 l = self.load_pos(info)
+
+                print("")
+                if self.config.MASK_CROP:
+                    extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
+
+                    if len(l) == 0:
+                        l = np.array([[0, 0, 0, 0]])
+                    else:
+                        ll = np.copy(l).T
+                        # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
+                        # label2[3] = label2[3] * spacing[1] / resolution[1]
+                        ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+                        l = ll[:4].T
+
                 # print data_dir, idx
                 # l = np.load(data_dir+idx+"_label.npy",allow_pickle="True")
                 # print l, os.path.join(data_dir, "%s_label.npy" %idx)
@@ -366,12 +384,18 @@ class MethodistFull(Dataset):
             isRandom = False
 
         if self.subset == "inference":
-            temp = np.load(self.filenames[idx], allow_pickle=True)
-            imgs = temp["image"]
+            try:
+                temp = np.load(self.filenames[idx], allow_pickle=True)
+                info = temp["info"]
+                imgs = temp["image"]
+            except:
+                temp = np.load(self.filenames[idx].replace(".npz", "_clean.npz"), allow_pickle=True)
+                info = temp["info"]
+                imgs = temp["image"]
+                imgs = imgs.squeeze(0)
             if not self.mask_lung:
                 imgs = lumTrans(imgs)
             imgs = imgs[np.newaxis, :]
-            info = temp["info"]
             ori_imgs = np.copy(imgs)
             nz, nh, nw = imgs.shape[1:]
             pz = int(np.ceil(float(nz) / self.stride)) * self.stride
@@ -397,7 +421,11 @@ class MethodistFull(Dataset):
             if not isRandomImg:
                 bbox = self.bboxes[idx]
                 filename = self.filenames[int(bbox[0])]
-                imgs = np.load(filename, allow_pickle=True)["image"]
+                try:
+                    imgs = np.load(filename, allow_pickle=True)["image"]
+                except:
+                    imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+                    imgs = imgs.squeeze(0)
                 if not self.mask_lung:
                     imgs = lumTrans(imgs)
                 imgs = imgs[np.newaxis, :]
@@ -413,7 +441,11 @@ class MethodistFull(Dataset):
             else:
                 randimid = np.random.randint(len(self.kagglenames))
                 filename = self.kagglenames[randimid]
-                imgs = np.load(filename, allow_pickle=True)["image"]
+                try:
+                    imgs = np.load(filename, allow_pickle=True)["image"]
+                except:
+                    imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+                    imgs = imgs.squeeze(0)
                 if self.mask_lung:
                     imgs = lumTrans(imgs)
                 imgs = imgs[np.newaxis, :]
@@ -425,9 +457,15 @@ class MethodistFull(Dataset):
             sample = (sample.astype(np.float32) - 128) / 128
             # if filename in self.kagglenames and self.subset=="train":
             #    label[label==-1]=0
+            if sample.shape[2] != 96:
+                print("")
             return torch.from_numpy(sample), torch.from_numpy(label), coord, target
         else:
-            imgs = np.load(self.filenames[idx], allow_pickle=True)["image"]
+            try:
+                imgs = np.load(self.filenames[idx], allow_pickle=True)["image"]
+            except:
+                imgs = np.load(self.filenames[idx].replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+                imgs = imgs.squeeze(0)
             if not self.mask_lung:
                 imgs = lumTrans(imgs)
             imgs = imgs[np.newaxis, :]

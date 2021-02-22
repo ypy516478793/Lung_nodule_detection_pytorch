@@ -343,7 +343,7 @@ def main():
         dataset = Dataset(config, subset="val")
         val_loader = DataLoader(
             dataset,
-            batch_size=args.batch_size,
+            batch_size=1,
             shuffle=False,
             num_workers=args.workers,
             pin_memory=True)
