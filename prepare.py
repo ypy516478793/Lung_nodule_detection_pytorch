@@ -897,8 +897,8 @@ def prepare_masked_images(root_dir, save_dir):
         imgs, masks = mask_scan(imgs)
         imgs = lumTrans(imgs)
 
-        xx, yy, zz = np.where(masks)
-        box = np.array([[np.min(xx), np.max(xx)], [np.min(yy), np.max(yy)], [np.min(zz), np.max(zz)]])
+        zz, yy, xx = np.where(masks)
+        box = np.array([[np.min(zz), np.max(zz)], [np.min(yy), np.max(yy)], [np.min(xx), np.max(xx)]])
         box = np.floor(box).astype('int')
         margin = 5
         extendbox = np.vstack([np.max([[0, 0, 0], box[:, 0] - margin], 0),

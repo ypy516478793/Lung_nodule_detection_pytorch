@@ -680,6 +680,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
             else:
                 output = net(input, inputcoord)
             outputlist.append(output.data.cpu().numpy())  ## Shape is (6,4,......)
+            del output
         print()
         print("The shape of outputlist is:  " + str(np.array(outputlist).shape))
         output = np.concatenate(outputlist, 0)

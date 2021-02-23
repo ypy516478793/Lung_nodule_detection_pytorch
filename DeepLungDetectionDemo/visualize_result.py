@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-showid = 1 # from 0 to 4
+showid = 0 # from 0 to 4
 assert showid in range(5)
 
 def lumTrans(img):
@@ -54,18 +54,25 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
 #           "028735272-20150702",
 #           "013746417-20130514"]
 
-srslst = ["013484043-20180202",
-          "033942251-20130925",
-          "014776371-20171117"]
+# srslst = ["013484043-20180202",
+#           "033942251-20130925",
+#           "014776371-20171117"]
+
+srslst = ["001132554-20150830",
+          "004292108-20160725",
+          "007379647-20151203"]
+
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
-data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+# data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-122426-test/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/bbox/"
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/bbox/"
 
 pos_label_file = "pos_labels.csv"
 info_file = "CTinfo.npz"
@@ -87,7 +94,20 @@ temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
 ctlab = temp[:, [2, 1, 0, 3]]
 ctlab[:, 0] = ctlab[:, 0] - 1
 
-imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+try:
+    imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+except Exception:
+    imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+    extendbox = np.load(filename.replace(".npz", "_extendbox.npz"))["extendbox"]
+
+    if len(ctlab) == 0:
+        ctlab = np.array([[0, 0, 0, 0]])
+    else:
+        ll = np.copy(ctlab).T
+        # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
+        # label2[3] = label2[3] * spacing[1] / resolution[1]
+        ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+        ctlab = ll[:4].T
 # ctdat = lumTrans(imgs)
 ctdat = imgs
 
@@ -153,7 +173,7 @@ for row, pi in enumerate(pbb):
 pbb = np.delete(pbb, delete_row, 0)
 print("prediction shape is: ", pbb.shape)
 
-num_show = np.min([pbb.shape[0], 10])
+num_show = np.min([pbb.shape[0], 3])
 
 # print pbb.shape, pbb
 print('Detection Results according to confidence')
