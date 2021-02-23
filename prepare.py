@@ -22,6 +22,7 @@ import pandas
 from multiprocessing import Pool
 from functools import partial
 from tqdm import tqdm
+import pandas as pd
 
 import warnings
 
@@ -724,7 +725,7 @@ def preprocess_luna():
         # pool = Pool()
         if not os.path.exists(savepath):
             os.mkdir(savepath)
-        for setidx in range(4, 10):
+        for setidx in range(0, 1):
             print('process subset', setidx)
             filelist = [f.split('.mhd')[0] for f in os.listdir(luna_data + 'subset' + str(setidx)) if
                         f.endswith('.mhd')]
@@ -736,7 +737,7 @@ def preprocess_luna():
             #                            savepath=savepath+'subset'+str(setidx)+'/')
             N = len(filelist)
             for i in tqdm(range(N)):
-                _ = savenpy_luna_raw(i, annos, filelist=filelist,
+                _ = savenpy_luna(i, annos, filelist=filelist,
                                      luna_segment=luna_segment, luna_data=luna_data + 'subset' + str(setidx) + '/',
                                      savepath=savepath + 'subset' + str(setidx) + '/')
             # savenpy(1)
@@ -770,7 +771,7 @@ def make_lungmask(img, display=False):
     mean = np.mean(img)
     std = np.std(img)
     if std == 0:
-        return np.zeros_like(img)
+        return np.zeros_like(img), np.zeros_like(img, dtype=np.int8)
 
     img = img - mean
     img = img / std
@@ -840,37 +841,91 @@ def make_lungmask(img, display=False):
         ax[2, 1].axis('off')
 
         plt.show()
-    return mask * raw_img
+    return mask * raw_img, mask
 
 
 def mask_scan(images):
     masked_images = []
+    masks = []
     for img in images:
-        masked_images.append(make_lungmask(img))
-    masked_images = np.stack(masked_images)
-    return masked_images
 
+        masked_image, mask = make_lungmask(img)
+        masked_images.append(masked_image)
+        masks.append(mask)
+    masked_images = np.stack(masked_images)
+    masks = np.stack(masks)
+    return masked_images, masks
+
+
+def prepare_cropped_labels(save_dir):
+    info_path = os.path.join(save_dir, "CTinfo.npz")
+    infos = np.load(info_path, allow_pickle=True)["info"]
+
+    pos_label_file = "pos_labels.csv"
+    pos_df = pd.read_csv(os.path.join(save_dir, pos_label_file), dtype={"MRN": str, "date": str})
+
+    for info in tqdm(infos):
+        save_path = info["imagePath"]
+        extendbox = np.load(save_path.replace(".npz","_extendbox.npz"))["extendbox"]
+
+        thickness, spacing = info["sliceThickness"], info["pixelSpacing"]
+        pstr = info["pstr"]
+        dstr = info["date"]
+        patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
+        assert patient_colname in pos_df
+        existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
+        pos = pos_df[existId][["x", "y", "z", "d"]].values
+        pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
+        pos = pos[:, [2, 1, 0, 3]]
+
+        print("")
 
 def prepare_masked_images(root_dir, save_dir):
     info_path = os.path.join(root_dir, "CTinfo.npz")
     infos = np.load(info_path, allow_pickle=True)["info"]
+    i = 0
     for info in tqdm(infos):
+        i = i + 1
+        # if i < 7:
+        #     continue
         s = info["imagePath"].find("Lung_patient")
         save_path = os.path.join(save_dir, info["imagePath"][s:].replace("\\", "/"))
         load_path = os.path.join(root_dir, info["imagePath"][s:].replace("\\", "/"))
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
         imgs = np.load(load_path, allow_pickle=True)["image"]
-        imgs = mask_scan(imgs)
+        imgs, masks = mask_scan(imgs)
         imgs = lumTrans(imgs)
+
+        xx, yy, zz = np.where(masks)
+        box = np.array([[np.min(xx), np.max(xx)], [np.min(yy), np.max(yy)], [np.min(zz), np.max(zz)]])
+        box = np.floor(box).astype('int')
+        margin = 5
+        extendbox = np.vstack([np.max([[0, 0, 0], box[:, 0] - margin], 0),
+                               np.min([masks.shape, box[:, 1] + 2 * margin], axis=0).T]).T
+        sliceim = imgs[extendbox[0, 0]:extendbox[0, 1],
+                       extendbox[1, 0]:extendbox[1, 1],
+                       extendbox[2, 0]:extendbox[2, 1]]
+        sliceim = sliceim[np.newaxis, ...]
+
+        savepath = os.path.dirname(save_path)
+        name = os.path.basename(save_path).strip(".npz")
+        # spacing = np.array([1, 1, 1])
+        # origin = np.array([0, 0, 0])
+        np.savez_compressed(os.path.join(savepath, name+'_clean.npz'), image=sliceim, info=info)
+        # np.save(os.path.join(savepath, name+'_spacing.npy'), spacing)
+        np.savez_compressed(os.path.join(savepath, name+'_extendbox.npz'), extendbox=extendbox)
+        # np.save(os.path.join(savepath, name+'_origin.npy'), origin)
+        np.savez_compressed(os.path.join(savepath, name+'_mask.npz'), masks=masks)
+
 
     #     info["imagePath"] = save_path
     #     np.savez_compressed(save_path, image=imgs, info=info)
     #     print("Save masked images to {:s}".format(save_path))
     #
-    # new_info_path = os.path.join(save_dir, "CTinfo.npz")
-    # np.savez_compressed(new_info_path, info=infos)
-    # print("Save all scan infos to {:s}".format(new_info_path))
+    new_info_path = os.path.join(save_dir, "CTinfo.npz")
+    np.savez_compressed(new_info_path, info=infos)
+    print("Save all scan infos to {:s}".format(new_info_path))
 
 def assign_PET_label(dst_dir):
 
@@ -887,13 +942,19 @@ def assign_PET_label(dst_dir):
         series = info["series"]
         if series in PET_series:
             info["PET"] = "Y"
-            shape = np.load(info['imagePath'])["image"].shape
-            if not shape[0] >= 500:
+            try:
+                shape = np.load(info['imagePath'])["image"].shape
+            except FileNotFoundError:
+                shape = np.load(info['imagePath'].replace(".npz", "_clean.npz"))["image"].shape
+            if not shape[1] >= 500:
                 print("index {:}, series is {:}, shape is {:}".format(i, series, shape))
         else:
             info["PET"] = "N"
-            shape = np.load(info['imagePath'])["image"].shape
-            if not shape[0] < 500:
+            try:
+                shape = np.load(info['imagePath'])["image"].shape
+            except FileNotFoundError:
+                shape = np.load(info['imagePath'].replace(".npz", "_clean.npz"))["image"].shape
+            if not shape[1] < 500:
                 print("index {:}, series is {:}, shape is {:}".format(i, series, shape))
     print(infos)
 
@@ -910,14 +971,15 @@ if __name__ == '__main__':
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
 
     # dst_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
 
     # change_root_info(dst_dir)
     # assign_PET_label(dst_dir)
 
-    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/"
-    root_dir = "/data/pyuan2/Methodist_incidental/"
+    root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/"
+    # root_dir = "/data/pyuan2/Methodist_incidental/"
     #
-    save_dir = os.path.join(root_dir, "data_kim/masked_first/")
+    save_dir = os.path.join(root_dir, "data_kim/masked_with_crop/")
     root_dir = os.path.join(root_dir, "data_kim/labeled/")
     # # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_TC/masked_first/"
     # # root_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Incidental_lung/data_TC/labeled/"
@@ -926,3 +988,4 @@ if __name__ == '__main__':
     # # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
     #
     prepare_masked_images(root_dir, save_dir)
+    # prepare_cropped_labels(save_dir)

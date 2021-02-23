@@ -576,6 +576,12 @@ def collect(seriesuids_path):
 
         temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
         # pos = pos[:, [2, 1, 0, 3]]
+        if "crop" in seriesuids_path:
+            extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
+            ll = np.copy(temp0[:, [2, 1, 0, 3]]).T
+            ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+            temp0 = ll[:4].T
+            temp0 = temp0[:, [2, 1, 0, 3]]
         for temp1 in temp0:
             annotations.append([seriesuid] + temp1.tolist())
 
@@ -611,20 +617,22 @@ if __name__ == '__main__':
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543"    ## trained on luna (pretrained)
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/"    ## trained on masked methodist data
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-122426-test/"    ## trained on masked methodist data, test on same data
-    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/"    ## trained on masked methodist data, test on same data
+    # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/"    ## trained on masked methodist data, test on same data
+    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/"    ## trained on masked methodist data, test on same data
 
     outputDir = result_dir
-    getcsv(detp, nmsthresh, "masked")
+    getcsv(detp, nmsthresh, "masked_cropped")
 
 
     # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-    data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+    # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+    data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
     pos_label_file = "pos_labels.csv"
     info_file = "CTinfo.npz"
 
     seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")
     # result_file = "luna_IOU0.2_detp0_nms0.1.csv"
-    result_file = "masked_detp0_nms0.1.csv"
+    result_file = "masked_cropped_detp0_nms0.1.csv"
     results_path = os.path.join(result_dir, "bbox", result_file)
     noduleCADEvaluation(seriesuids_path)
 

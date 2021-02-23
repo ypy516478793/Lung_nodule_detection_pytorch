@@ -343,7 +343,7 @@ def main():
         dataset = Dataset(config, subset="val")
         val_loader = DataLoader(
             dataset,
-            batch_size=args.batch_size,
+            batch_size=1,
             shuffle=False,
             num_workers=args.workers,
             pin_memory=True)
@@ -680,6 +680,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
             else:
                 output = net(input, inputcoord)
             outputlist.append(output.data.cpu().numpy())  ## Shape is (6,4,......)
+            del output
         print()
         print("The shape of outputlist is:  " + str(np.array(outputlist).shape))
         output = np.concatenate(outputlist, 0)
