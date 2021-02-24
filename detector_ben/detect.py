@@ -16,6 +16,12 @@ Run inference:
 import sys
 sys.path.append("../")
 
+import os
+import matplotlib as mpl
+if os.environ.get('DISPLAY','') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
+
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
 from datetime import datetime
@@ -25,9 +31,9 @@ from tqdm import tqdm
 
 import numpy as np
 import argparse
+import shutil
 import torch
 import time
-import os
 # import time
 # import numpy as np
 # # import detector.data as datald
@@ -93,6 +99,8 @@ parser.add_argument("--split", default=8, type=int, metavar="SPLIT",
 # parser.add_argument("--gpu", default="4, 5, 6, 7", type=str, metavar="N",
 parser.add_argument("--gpu", default="0, 1, 2, 3", type=str, metavar="N",
                     help="use gpu")
+parser.add_argument("--rseed", default=None, type=int, metavar="N",
+                    help="random seed for train/val/test data split")
 parser.add_argument("--n_test", default=2, type=int, metavar="N",
                     help="number of gpu for test")
 parser.add_argument("--train_patience", type=int, default=10,
@@ -177,6 +185,7 @@ def main():
     elif args.datasource == "methodistFull":
         from dataLoader.methodistFull import MethodistFull, IncidentalConfig
         config = IncidentalConfig()
+        config.SPLIT_SEED = args.rseed
         Dataset = MethodistFull
 
     ## Specify the save directory
@@ -191,8 +200,19 @@ def main():
     else:
         save_dir = os.path.join("results", save_dir)
 
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+    if not args.test:
+        if os.path.exists(save_dir):
+            choice = input("This directory {} already exist, [o] to overwrite it or [c] to continue training, "
+                           "any other to stop.\n".format(save_dir))
+            if choice == 'o':
+                shutil.rmtree(save_dir)
+                os.makedirs(save_dir)
+            elif choice == 'c':
+                pass
+            else:
+                raise SystemExit("Manually interrupted! Try another directory")
+        else:
+            os.makedirs(save_dir)
     logfile = os.path.join(save_dir, "log")
     # if args.test != 1:
     sys.stdout = Logger(logfile)
@@ -261,7 +281,15 @@ def main():
     ## Load saved model
     start_epoch = args.start_epoch
     if args.resume:
-        checkpoint = torch.load(args.resume)
+        try:
+            model_path = args.resume
+            checkpoint = torch.load(model_path)
+        except:
+            model_list = [m for m in os.listdir(args.resume) if m.endswith("ckpt")]
+            from natsort import natsorted
+            latest_model = natsorted(model_list)[-1]
+            model_path = os.path.join(args.resume, latest_model)
+            checkpoint = torch.load(model_path)
         state_dict = checkpoint["state_dict"]
         try:
             net.load_state_dict(state_dict)
@@ -273,7 +301,7 @@ def main():
                 new_state_dict[name] = v
             net.load_state_dict(new_state_dict)
 
-        print("Load successfully from " + args.resume)
+        print("Load successfully from " + model_path)
     if start_epoch == 0:
         start_epoch = 1
 
@@ -681,7 +709,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
                 output = net(input, inputcoord)
             outputlist.append(output.data.cpu().numpy())  ## Shape is (6,4,......)
             del output
-        print()
+        # print()
         print("The shape of outputlist is:  " + str(np.array(outputlist).shape))
         output = np.concatenate(outputlist, 0)
         output = split_comber.combine(output, nzhw=nzhw)
@@ -806,7 +834,7 @@ def inference(data_loader, net, get_pbb, save_dir, config):
             else:
                 output = net(input, inputcoord)
             outputlist.append(output.data.cpu().numpy())  ## Shape is (6,4,......)
-        print()
+        # print()
         print("The shape of outputlist is:  " + str(np.array(outputlist).shape))
         output = np.concatenate(outputlist, 0)
         output = split_comber.combine(output, nzhw=nzhw)

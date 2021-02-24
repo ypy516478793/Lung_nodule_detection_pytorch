@@ -67,6 +67,7 @@ class IncidentalConfig(object):
     MARGIN = 32
 
     ORIGIN_SCALE = False
+    SPLIT_SEED = None
 
     def display(self):
         """Display Configuration values."""
@@ -252,7 +253,7 @@ class MethodistFull(Dataset):
         self.pet_ct = config.PET_CT
         self.screen()
         self.label_mapping = LabelMapping(config, subset)
-        self.load_subset(subset)
+        self.load_subset(subset, random_state=config.SPLIT_SEED)
 
     def screen(self):
         '''
@@ -272,14 +273,16 @@ class MethodistFull(Dataset):
             self.imageInfo = self.imageInfo[mask]
             print("number of CT scans after screening: {:d}".format(len(self.imageInfo)))
 
-    def load_subset(self, subset):
+    def load_subset(self, subset, random_state=None):
         ## train/val/test split
         if subset == "inference":
             infos = self.imageInfo
         else:
             ## train/val/test split
-            trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
-            valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
+            if random_state is None:
+                random_state = 42
+            trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=random_state)
+            valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=random_state)
 
             assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
             if subset == "train":
@@ -312,7 +315,7 @@ class MethodistFull(Dataset):
                 assert info != -1, "No matched info!!"
                 l = self.load_pos(info)
 
-                print("")
+                # print("")
                 if self.config.MASK_CROP:
                     extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
 

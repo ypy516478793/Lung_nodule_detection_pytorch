@@ -5,8 +5,14 @@ import sklearn.metrics as skl_metrics
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import argparse
 import csv
+
 import os
+import matplotlib as mpl
+if os.environ.get('DISPLAY','') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
 
 seriesuid_label = 'seriesuid'
 coordX_label = 'coordX'
@@ -19,6 +25,8 @@ CADProbability_label = 'probability'
 FROC_minX = 0.125  # Mininum value of x-axis of FROC curve
 FROC_maxX = 8  # Maximum value of x-axis of FROC curve
 bLogPlot = True
+
+
 
 
 def iou(box0, box1):
@@ -276,7 +284,7 @@ def evaluateCAD(seriesUIDs, results_path, outputDir, allNodules, CADSystemName, 
             found = False
             noduleMatches = []
 
-            if IOU_TH is not None:
+            if iouthresh is not None:
                 best_score = 0
                 for key, candidate in candidates.items():
                     x2 = float(candidate.coordX)
@@ -287,7 +295,7 @@ def evaluateCAD(seriesUIDs, results_path, outputDir, allNodules, CADSystemName, 
                     box0 = np.array([x, y, z, diameter])
                     box1 = np.array([x2, y2, z2, d2])
                     score = iou(box0, box1)
-                    if score >= IOU_TH:
+                    if score >= iouthresh:
                         if score > best_score:
                             found = True
                             best_score = score
@@ -606,34 +614,54 @@ def noduleCADEvaluation(seriesuids_path):
 
 
 if __name__ == '__main__':
+    # list_int_parser = lambda x: [int(i) for i in x.strip("[]").split(",")] if x else []
+    list_float_parser = lambda x: [float(i) for i in x.strip("[]").split(",")] if x else []
+    parser = argparse.ArgumentParser(description="evaluation script")
+    parser.add_argument('--detp', type=list_float_parser, help='detect probability threshold', default="[0]")
+    parser.add_argument('--nmsthresh', type=list_float_parser, help='nms threshold', default="[0.1]")
+    parser.add_argument('--iouthresh', type=float, help='iou threshold', default=None)
+    parser.add_argument('--result_dir', type=str, help='result directory', 
+                        default="../detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/")
+    parser.add_argument('--data_dir', type=str, help='data file directory', 
+                        default="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/")
+    parser.add_argument('--extra_str', type=str, help='extra string for data', default="masked_cropped")
 
-    detp = [0]
-    nmsthresh = [0.1]
-    # IOU_TH = 0.2
-    IOU_TH = None
-    # IOU_TH = None
+    args = parser.parse_args()
+
+    detp = args.detp
+    nmsthresh = args.nmsthresh
+    iouthresh = args.iouthresh
+    result_dir = args.result_dir
+    extra_str = args.extra_str
+    # iouthresh = None
+    # iouthresh = None
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/"   ## fine-tuned on methodist data
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/"    ## trained on lunaRaw
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543"    ## trained on luna (pretrained)
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/"    ## trained on masked methodist data
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-122426-test/"    ## trained on masked methodist data, test on same data
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/"    ## trained on masked methodist data, test on same data
-    result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/"    ## trained on masked methodist data, test on same data
+    # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/"    ## trained on masked methodist data, test on same data
 
     outputDir = result_dir
-    getcsv(detp, nmsthresh, "masked_cropped")
+    getcsv(detp, nmsthresh, extra_str)
 
 
     # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
     # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
-    data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
+    # data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
+    data_dir = args.data_dir
     pos_label_file = "pos_labels.csv"
     info_file = "CTinfo.npz"
 
     seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")
     # result_file = "luna_IOU0.2_detp0_nms0.1.csv"
-    result_file = "masked_cropped_detp0_nms0.1.csv"
-    results_path = os.path.join(result_dir, "bbox", result_file)
-    noduleCADEvaluation(seriesuids_path)
+    # result_file = "masked_cropped_detp0_nms0.1.csv"
+    for nmsth in nmsthresh:
+        for detpthresh in detp:
+            print('detp', detpthresh, "nmsth", nmsth)
+            result_file = "{:s}_detp{:s}_nms{:s}.csv".format(extra_str, str(detpthresh), str(nmsth))
+            results_path = os.path.join(result_dir, "bbox", result_file)
+            noduleCADEvaluation(seriesuids_path)
 
-    print("")
+            print("")
