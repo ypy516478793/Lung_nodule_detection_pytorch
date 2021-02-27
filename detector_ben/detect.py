@@ -17,10 +17,10 @@ import sys
 sys.path.append("../")
 
 import os
-import matplotlib as mpl
-if os.environ.get('DISPLAY','') == '':
-    print('no display found. Using non-interactive Agg backend')
-    mpl.use('Agg')
+# import matplotlib as mpl
+# if os.environ.get('DISPLAY','') == '':
+#     print('no display found. Using non-interactive Agg backend')
+#     mpl.use('Agg')
 
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
@@ -28,7 +28,7 @@ from datetime import datetime
 from copy import deepcopy
 from tqdm import tqdm
 
-
+import imgaug.augmenters as iaa
 import numpy as np
 import argparse
 import shutil
@@ -101,6 +101,8 @@ parser.add_argument("--gpu", default="0, 1, 2, 3", type=str, metavar="N",
                     help="use gpu")
 parser.add_argument("--rseed", default=None, type=int, metavar="N",
                     help="random seed for train/val/test data split")
+parser.add_argument("--limit_train", default=None, type=float, metavar="N",
+                    help="ratio of training size")
 parser.add_argument("--n_test", default=2, type=int, metavar="N",
                     help="number of gpu for test")
 parser.add_argument("--train_patience", type=int, default=10,
@@ -186,6 +188,7 @@ def main():
         from dataLoader.methodistFull import MethodistFull, IncidentalConfig
         config = IncidentalConfig()
         config.SPLIT_SEED = args.rseed
+        config.LIMIT_TRAIN = args.limit_train
         Dataset = MethodistFull
 
     ## Specify the save directory
@@ -449,6 +452,15 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
 
     metrics = []
 
+    sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+    seq = iaa.Sequential([iaa.Fliplr(0.5),
+                          iaa.Flipud(0.5),
+                          sometimes(iaa.Rot90([1, 3])),
+                          sometimes(iaa.Affine(rotate=(-45, 45))),
+                          iaa.TranslateY(px=(-40, 40)),
+                          iaa.TranslateX(px=(-40, 40)),
+                          ])
+
     for i, (data, label, coord, target) in enumerate(tqdm(data_loader)):
         # if epoch == args.start_epoch + 1:
         #     for j in range(len(data)):
@@ -457,6 +469,9 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
         #             writer.add_figure("training images",
         #                               fig, global_step=i)
         s_time = time.time()
+
+
+
 
         data = Variable(torch.FloatTensor(data).cuda(async=True))
         label = Variable(torch.FloatTensor(label).cuda(async=True))

@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from sklearn.cluster import KMeans
 from skimage import morphology
 from skimage import measure
+import imgaug.augmenters as iaa
 import pandas as pd
 import numpy as np
 import torch
@@ -58,6 +59,7 @@ class IncidentalConfig(object):
     R_RAND_CROP = 0.3
     PAD_VALUE = 0   # previous 170
     AUGTYPE = {"flip": True, "swap": False, "scale": True, "rotate": False}
+    # AUGTYPE = {"flip": True, "swap": True, "scale": True, "rotate": True}
 
     CONF_TH = 4
     NMS_TH = 0.3
@@ -68,6 +70,7 @@ class IncidentalConfig(object):
 
     ORIGIN_SCALE = False
     SPLIT_SEED = None
+    LIMIT_TRAIN = None
 
     def display(self):
         """Display Configuration values."""
@@ -253,7 +256,34 @@ class MethodistFull(Dataset):
         self.pet_ct = config.PET_CT
         self.screen()
         self.label_mapping = LabelMapping(config, subset)
-        self.load_subset(subset, random_state=config.SPLIT_SEED)
+        self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN)
+
+        self.aug_op = "flip_rot"
+        # self.augmentor = self.set_augment()
+
+        # sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+        # self.seq = iaa.Sequential([iaa.Fliplr(0.5),
+        #                            iaa.Flipud(0.5),
+        #                            sometimes(iaa.Rot90([1, 3])),
+        #                            sometimes(iaa.Affine(rotate=(-45, 45))),
+        #                            iaa.TranslateY(px=(-40, 40)),
+        #                            iaa.TranslateX(px=(-40, 40)),
+        #                            ])
+
+    def set_augment(self):
+        if self.aug_op == "flip_rot":
+            augmentor = iaa.Sequential([iaa.Fliplr(0.5), iaa.Rot90([0, 3])])
+        elif self.aug_op == "gamma_contrast":
+            augmentor = iaa.GammaContrast((2.0))
+        elif self.aug_op == "shift":
+            augmentor = iaa.Sequential([iaa.TranslateY(px=(-40, 40)), iaa.TranslateX(px=(-40, 40))])
+        else:
+            assert self.aug_op == "all"
+            augmentor = iaa.Sequential([iaa.Fliplr(0.5), iaa.Rot90([0, 3]),
+                                        iaa.GammaContrast((2.0)),
+                                        iaa.TranslateY(px=(-40, 40)), iaa.TranslateX(px=(-40, 40))])
+
+        return augmentor
 
     def screen(self):
         '''
@@ -273,7 +303,7 @@ class MethodistFull(Dataset):
             self.imageInfo = self.imageInfo[mask]
             print("number of CT scans after screening: {:d}".format(len(self.imageInfo)))
 
-    def load_subset(self, subset, random_state=None):
+    def load_subset(self, subset, random_state=None, limit_train_size=None):
         ## train/val/test split
         if subset == "inference":
             infos = self.imageInfo
@@ -287,6 +317,8 @@ class MethodistFull(Dataset):
             assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
             if subset == "train":
                 infos = trainInfo
+                if limit_train_size is not None:
+                    infos = infos[:int(limit_train_size * len(infos))]
             elif subset == "val":
                 infos = valInfo
             else:
@@ -431,6 +463,9 @@ class MethodistFull(Dataset):
                     imgs = imgs.squeeze(0)
                 if not self.mask_lung:
                     imgs = lumTrans(imgs)
+
+                pass
+
                 imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[int(bbox[0])]
                 # isScale = self.augtype["scale"] and (self.subset == "train")
@@ -451,6 +486,9 @@ class MethodistFull(Dataset):
                     imgs = imgs.squeeze(0)
                 if self.mask_lung:
                     imgs = lumTrans(imgs)
+
+                pass
+
                 imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[randimid]
                 isScale = self.augtype["scale"] and (self.subset == "train")
