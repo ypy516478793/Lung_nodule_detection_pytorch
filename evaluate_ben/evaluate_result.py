@@ -431,15 +431,22 @@ def evaluateCAD(seriesUIDs, results_path, outputDir, allNodules, CADSystemName, 
     sens_itp = np.interp(fps_itp, fps, sens)
     frvvlu = 0
     nxth = 0.125
+    fps_sens_list = []
     for fp, ss in zip(fps_itp, sens_itp):
         if abs(fp - nxth) < 3e-4:
             frvvlu += ss
             nxth *= 2
+            fps_sens_list.append(ss)
         if abs(nxth - 16) < 1e-5: break
-    print((frvvlu / 7, nxth))
-    print((sens_itp[fps_itp == 0.125] + sens_itp[fps_itp == 0.25] + sens_itp[fps_itp == 0.5] + sens_itp[fps_itp == 1] +
-           sens_itp[fps_itp == 2] \
-           + sens_itp[fps_itp == 4] + sens_itp[fps_itp == 8]))
+    # print((frvvlu / 7, nxth))
+    print("Average precision: ", np.mean(fps_sens_list))
+    assert nxth == 16, "nxth is not 16!"
+    print("Precision @ 0.125/0.25/0.5/1/2/4/8", fps_sens_list)
+    with open(os.path.join(outputDir, "froc_mAP.csv"), "w") as f:
+        f.write("mAP: {:f}\n".format(np.mean(fps_sens_list)))
+        f.write("APs: {:}".format(fps_sens_list))
+    # print((sens_itp[fps_itp == 0.125] + sens_itp[fps_itp == 0.25] + sens_itp[fps_itp == 0.5] + sens_itp[fps_itp == 1] + \
+    #        sens_itp[fps_itp == 2] + sens_itp[fps_itp == 4] + sens_itp[fps_itp == 8]))
     if performBootstrapping:
         # Write mean, lower, and upper bound curves to disk
         with open(os.path.join(outputDir, "froc_%s_bootstrapping.csv" % CADSystemName), 'w') as f:

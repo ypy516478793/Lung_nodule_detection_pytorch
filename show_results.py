@@ -116,6 +116,21 @@ def draw_bbox(savedir, images, pred, label=None):
     plt.show()
     return data
 
+def plot_learning_curve():
+    train_loss = [0.0305, 0.2446, 0.3404, 0.1859, 0.2307, 0.1591, 0.1614, 0.2249, 0.2300, 0.1515]
+    test_loss = [0.3969, 0.3477, 0.4032, 0.2483, 0.2044, 0.1972, 0.2259, 0.2266, 0.2338, 0.1973]
+    train_acc = [100, 94.23, 83.33, 90.38, 90.70, 92.86, 93.72, 95.30, 92.74, 93.24]
+    test_acc = [89.69, 91.93, 91.03, 93.72, 93.27, 93.27, 92.38, 93.72, 93.72, 94.17]
+
+    train_size = np.arange(10, 105, 10)
+    plt.plot(train_size, train_loss, label="train_loss")
+    plt.plot(train_size, test_loss, label="test_loss")
+    # plt.plot(train_size, train_acc, label="train_acc")
+    # plt.plot(train_size, test_acc, label="test_acc")
+    plt.legend()
+    plt.show()
+
+
 if __name__ == '__main__':
     # showid = 0
     # srslst = ['1.3.6.1.4.1.14519.5.2.1.6279.6001.208737629504245244513001631764',\
@@ -153,3 +168,5 @@ if __name__ == '__main__':
         plt.imshow(dat0)
 
     print("")
+
+    # plot_learning_curve()
