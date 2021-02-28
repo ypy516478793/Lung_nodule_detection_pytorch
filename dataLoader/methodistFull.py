@@ -3,6 +3,7 @@ from scipy.ndimage.interpolation import rotate
 from dataLoader.dataBase import LabelMapping, Crop, collate
 from dataLoader.splitCombine import SplitComb
 from torch.utils.data import Dataset
+from PIL import Image, ImageEnhance
 from sklearn.cluster import KMeans
 from skimage import morphology
 from skimage import measure
@@ -58,7 +59,7 @@ class IncidentalConfig(object):
     AUG_SCALE = True
     R_RAND_CROP = 0.3
     PAD_VALUE = 0   # previous 170
-    AUGTYPE = {"flip": False, "swap": False, "scale": False, "rotate": False}
+    AUGTYPE = {"flip": False, "swap": False, "scale": False, "rotate": False, "contrast": False, "bright": False, "sharp": False, "splice": False}
     # AUGTYPE = {"flip": True, "swap": True, "scale": True, "rotate": True}
 
     CONF_TH = 4
@@ -187,7 +188,15 @@ def make_lungmask(img, display=False):
         plt.show()
     return mask * img
 
-def augment(sample, target, bboxes, coord, ifflip=True, ifrotate=True, ifswap=True):
+def splice(sample_bgd, target_bgd, bboxes_bgd, coord_bgd, sample, target):
+    r = target[3] / 2
+    start = np.array(target[:3] - r).astype(np.int)
+    end = np.array(target[:3] + r).astype(np.int)
+    sample_bgd[0, start[0]: end[0], start[1]: end[1], start[2]: end[2]] = \
+        sample[0, start[0]: end[0], start[1]: end[1], start[2]: end[2]]
+    return sample_bgd, target, bboxes_bgd, coord_bgd
+
+def augment(sample, target, bboxes, coord, ifflip=False, ifrotate=False, ifswap=False, ifcontrast=False, ifbright=False, ifsharp=False):
     #                     angle1 = np.random.rand()*180
     if ifrotate:
         validrot = False
@@ -210,6 +219,36 @@ def augment(sample, target, bboxes, coord, ifflip=True, ifrotate=True, ifswap=Tr
                 counter += 1
                 if counter == 3:
                     break
+    if ifcontrast:
+        factor = np.random.rand() * 2
+        new_sample = []
+        for i in range(sample.shape[1]):
+            image_pil = Image.fromarray(sample[0, i])
+            enhancer = ImageEnhance.Contrast(image_pil)
+            image_enhanced = enhancer.enhance(factor)
+            new_sample.append(np.array(image_enhanced))
+        sample = np.expand_dims(new_sample, 0)
+
+    if ifbright:
+        factor = np.random.rand() * 2
+        new_sample = []
+        for i in range(sample.shape[1]):
+            image_pil = Image.fromarray(sample[0, i])
+            enhancer = ImageEnhance.Brightness(image_pil)
+            image_enhanced = enhancer.enhance(factor)
+            new_sample.append(np.array(image_enhanced))
+        sample = np.expand_dims(new_sample, 0)
+
+    if ifsharp:
+        factor = np.random.rand() * 2
+        new_sample = []
+        for i in range(sample.shape[1]):
+            image_pil = Image.fromarray(sample[0, i])
+            enhancer = ImageEnhance.Sharpness(image_pil)
+            image_enhanced = enhancer.enhance(factor)
+            new_sample.append(np.array(image_enhanced))
+        sample = np.expand_dims(new_sample, 0)
+
     if ifswap:
         if sample.shape[1] == sample.shape[2] and sample.shape[1] == sample.shape[3]:
             axisorder = np.random.permutation(3)
@@ -475,7 +514,15 @@ class MethodistFull(Dataset):
                     sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
                                                             ifflip=self.augtype["flip"],
                                                             ifrotate=self.augtype["rotate"],
-                                                            ifswap=self.augtype["swap"])
+                                                            ifswap=self.augtype["swap"],
+                                                            ifcontrast=self.augtype["contrast"],
+                                                            ifbright=self.augtype["bright"],
+                                                            ifsharp=self.augtype["sharp"],)
+                    if self.augtype["splice"]:
+                        sample_bgd, target_bgd, bboxes_bgd, coord_bgd = self.crop(
+                            imgs, bbox[1:], bboxes, isScale=False, isRand=True)
+                        sample, target, bboxes, coord = splice(sample_bgd, target_bgd, bboxes_bgd, coord_bgd, sample,
+                                                               target)
             else:
                 randimid = np.random.randint(len(self.kagglenames))
                 filename = self.kagglenames[randimid]

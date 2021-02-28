@@ -109,6 +109,10 @@ parser.add_argument("--flip", default=False, type=eval, help="flip")
 parser.add_argument("--swap", default=False, type=eval, help="swap")
 parser.add_argument("--scale", default=False, type=eval, help="scale")
 parser.add_argument("--rotate", default=False, type=eval, help="rotate")
+parser.add_argument("--contrast", default=False, type=eval, help="contrast")
+parser.add_argument("--bright", default=False, type=eval, help="bright")
+parser.add_argument("--sharp", default=False, type=eval, help="sharp")
+parser.add_argument("--splice", default=False, type=eval, help="splice")
 
 parser.add_argument("--n_test", default=2, type=int, metavar="N",
                     help="number of gpu for test")
@@ -200,6 +204,10 @@ def main():
         config.AUGTYPE["swap"] = args.swap
         config.AUGTYPE["scale"] = args.scale
         config.AUGTYPE["rotate"] = args.rotate
+        config.AUGTYPE["contrast"] = args.contrast
+        config.AUGTYPE["bright"] = args.bright
+        config.AUGTYPE["sharp"] = args.sharp
+        config.AUGTYPE["splice"] = args.splice
         Dataset = MethodistFull
 
     ## Specify the save directory

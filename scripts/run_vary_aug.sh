@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 
 cd ../detector_ben/
-GPU_ID=3
+GPU_ID=2
 RSEED=128
 FLIP=False
 SWAP=False
 SCALE=False
 ROTATE=False
-AUGSTR=None
+CONTRAST=False
+BRIGHT=True
+SHARP=False
+SPLICE=False
+AUGSTR=Bright
 
 #{"flip": False, "swap": False, "scale": False, "rotate": False}
 
@@ -25,6 +29,10 @@ python detect.py \
     --swap=${SWAP} \
     --scale=${SCALE} \
     --rotate=${ROTATE} \
+    --contrast=${CONTRAST} \
+    --bright=${BRIGHT} \
+    --sharp=${SHARP} \
+    --splice=${SPLICE} \
     --save-dir=worker32_batch8_kim_masked_crop_nonPET_lr001_rs${RSEED}_aug${AUGSTR}
 
 echo ""
