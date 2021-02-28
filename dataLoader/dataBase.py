@@ -30,7 +30,7 @@ class Crop(object):
         :return:
         '''
         if isScale:
-            radiusLim = [8., 120.]
+            radiusLim = [3., 60.]
             scaleLim = [0.75, 1.25]
             scaleRange = [np.min([np.max([(radiusLim[0] / target[3]), scaleLim[0]]), 1])
                 , np.max([np.min([(radiusLim[1] / target[3]), scaleLim[1]]), 1])]

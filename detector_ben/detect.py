@@ -103,6 +103,13 @@ parser.add_argument("--rseed", default=None, type=int, metavar="N",
                     help="random seed for train/val/test data split")
 parser.add_argument("--limit_train", default=None, type=float, metavar="N",
                     help="ratio of training size")
+
+# "flip": False, "swap": False, "scale": False, "rotate": False
+parser.add_argument("--flip", default=False, type=eval, help="flip")
+parser.add_argument("--swap", default=False, type=eval, help="swap")
+parser.add_argument("--scale", default=False, type=eval, help="scale")
+parser.add_argument("--rotate", default=False, type=eval, help="rotate")
+
 parser.add_argument("--n_test", default=2, type=int, metavar="N",
                     help="number of gpu for test")
 parser.add_argument("--train_patience", type=int, default=10,
@@ -189,6 +196,10 @@ def main():
         config = IncidentalConfig()
         config.SPLIT_SEED = args.rseed
         config.LIMIT_TRAIN = args.limit_train
+        config.AUGTYPE["flip"] = args.flip
+        config.AUGTYPE["swap"] = args.swap
+        config.AUGTYPE["scale"] = args.scale
+        config.AUGTYPE["rotate"] = args.rotate
         Dataset = MethodistFull
 
     ## Specify the save directory

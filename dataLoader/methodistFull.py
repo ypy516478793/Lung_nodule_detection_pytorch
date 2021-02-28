@@ -58,7 +58,7 @@ class IncidentalConfig(object):
     AUG_SCALE = True
     R_RAND_CROP = 0.3
     PAD_VALUE = 0   # previous 170
-    AUGTYPE = {"flip": True, "swap": False, "scale": True, "rotate": False}
+    AUGTYPE = {"flip": False, "swap": False, "scale": False, "rotate": False}
     # AUGTYPE = {"flip": True, "swap": True, "scale": True, "rotate": True}
 
     CONF_TH = 4
@@ -468,8 +468,8 @@ class MethodistFull(Dataset):
 
                 imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[int(bbox[0])]
-                # isScale = self.augtype["scale"] and (self.subset == "train")
-                isScale = False
+                isScale = self.augtype["scale"] and (self.subset == "train")
+                # isScale = False
                 sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
                 if self.subset == "train" and not isRandom:
                     sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
@@ -492,7 +492,7 @@ class MethodistFull(Dataset):
                 imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[randimid]
                 isScale = self.augtype["scale"] and (self.subset == "train")
-                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale=False, isRand=True)
+                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale, isRand=True)
             # print sample.shape, target.shape, bboxes.shape
             label = self.label_mapping(sample.shape[1:], target, bboxes, filename)
             sample = (sample.astype(np.float32) - 128) / 128
