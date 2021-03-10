@@ -1,10 +1,11 @@
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
+from sklearn.cluster import KMeans
 from scipy.ndimage.interpolation import rotate
 from dataLoader.dataBase import LabelMapping, Crop, collate
 from dataLoader.splitCombine import SplitComb
 from torch.utils.data import Dataset
 from PIL import Image, ImageEnhance
-from sklearn.cluster import KMeans
 from skimage import morphology
 from skimage import measure
 import imgaug.augmenters as iaa
@@ -15,19 +16,31 @@ import time
 import os
 
 class IncidentalConfig(object):
-    MASK_CROP = True
+    CROP_LUNG = True
     MASK_LUNG = True
     PET_CT = False
+    ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/"
+    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
 
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-    if MASK_CROP:
-        DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
-        assert MASK_LUNG
-    elif MASK_LUNG:
-        DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+    if MASK_LUNG:
+        if CROP_LUNG:
+            DATA_DIR = os.path.join(ROOT_DIR, "masked_with_crop")
+        else:
+            DATA_DIR = os.path.join(ROOT_DIR, "masked_first")
     else:
-        DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
+        DATA_DIR = os.path.join(ROOT_DIR, "labeled")
+
+    # if CROP_LUNG:
+    #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
+    #     assert MASK_LUNG
+    # elif MASK_LUNG:
+    #     # DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
+    #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
+    # else:
+    #     # DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
+    #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
 
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
@@ -61,6 +74,8 @@ class IncidentalConfig(object):
     PAD_VALUE = 0   # previous 170
     AUGTYPE = {"flip": False, "swap": False, "scale": False, "rotate": False, "contrast": False, "bright": False, "sharp": False, "splice": False}
     # AUGTYPE = {"flip": True, "swap": True, "scale": True, "rotate": True}
+    KFOLD = None
+    KFOLD_SEED = None
 
     CONF_TH = 4
     NMS_TH = 0.3
@@ -72,6 +87,7 @@ class IncidentalConfig(object):
     ORIGIN_SCALE = False
     SPLIT_SEED = None
     LIMIT_TRAIN = None
+    SPLIT_ID = None
 
     def display(self):
         """Display Configuration values."""
@@ -295,9 +311,11 @@ class MethodistFull(Dataset):
         self.pet_ct = config.PET_CT
         self.screen()
         self.label_mapping = LabelMapping(config, subset)
-        self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN)
+        self.kfold = KFold(n_splits=config.KFOLD, random_state=config.KFOLD_SEED) if config.KFOLD else None
+        self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN,
+                         kfold=self.kfold, splitId=config.SPLIT_ID)
 
-        self.aug_op = "flip_rot"
+        # self.aug_op = "flip_rot"
         # self.augmentor = self.set_augment()
 
         # sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -342,7 +360,7 @@ class MethodistFull(Dataset):
             self.imageInfo = self.imageInfo[mask]
             print("number of CT scans after screening: {:d}".format(len(self.imageInfo)))
 
-    def load_subset(self, subset, random_state=None, limit_train_size=None):
+    def load_subset(self, subset, random_state=None, limit_train_size=None, kfold=None, splitId=None):
         ## train/val/test split
         if subset == "inference":
             infos = self.imageInfo
@@ -350,8 +368,16 @@ class MethodistFull(Dataset):
             ## train/val/test split
             if random_state is None:
                 random_state = 42
-            trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=random_state)
-            valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=random_state)
+            if kfold is None:
+                trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=random_state)
+                valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=random_state)
+            else:
+                assert splitId is not None
+                trainValInfo, testInfo = train_test_split(self.imageInfo, test_size=0.2, random_state=random_state)
+                kf_indices = [(train_index, val_index) for train_index, val_index in kfold.split(trainValInfo)]
+                train_index, val_index = kf_indices[splitId]
+                trainInfo, valInfo = trainValInfo[train_index], trainValInfo[val_index]
+
 
             assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
             if subset == "train":
@@ -387,7 +413,7 @@ class MethodistFull(Dataset):
                 l = self.load_pos(info)
 
                 # print("")
-                if self.config.MASK_CROP:
+                if self.config.CROP_LUNG:
                     extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
 
                     if len(l) == 0:
@@ -436,6 +462,7 @@ class MethodistFull(Dataset):
         assert patient_colname in self.pos_df
         existId = (self.pos_df[patient_colname] == pstr) & (self.pos_df["date"] == dstr)
         pos = self.pos_df[existId][["x", "y", "z", "d"]].values
+        pos[:, 2] = pos[:, 2] - 1  ## BUG FIXED: slice index begins with 1 in EPIC system
         pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
         pos = pos[:, [2, 1, 0, 3]]
         pos = pos[pos[:, -1] < self.config.MAX_NODULE_SIZE]
@@ -595,48 +622,118 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torch.utils.tensorboard import SummaryWriter
     from torchvision.utils import make_grid
+    from tqdm import tqdm
 
     writer = SummaryWriter(os.path.join("Visualize", "MethodistFull"))
 
+    test = False
+    inference = True
     config = IncidentalConfig()
-    dataset = MethodistFull(config, subset="train")
+    config.SPLIT_SEED = 128
+    # config.LIMIT_TRAIN = args.limit_train
+    # config.AUGTYPE["flip"] = args.flip
+    # config.AUGTYPE["swap"] = args.swap
+    # config.AUGTYPE["scale"] = args.scale
+    # config.AUGTYPE["rotate"] = args.rotate
+    # config.AUGTYPE["contrast"] = args.contrast
+    # config.AUGTYPE["bright"] = args.bright
+    # config.AUGTYPE["sharp"] = args.sharp
+    # config.AUGTYPE["splice"] = args.splice
+    # config.KFOLD = args.kfold
+    # config.SPLIT_ID = args.split_id
 
-    # inference_loader = DataLoader(
-    #     dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     collate_fn=collate,
-    #     pin_memory=False)
-    #
-    # iterator = iter(inference_loader)
-    # cropped_sample, target, coord, nzhw, sample, info = next(iterator)
+    if test:
+        subset = "test"
+    elif inference:
+        subset = "inference"
+    else:
+        subset = "train"
+    dataset = MethodistFull(config, subset=subset)
 
-    # test_loader = DataLoader(
-    #     dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     collate_fn=collate,
-    #     pin_memory=False)
-    #
-    # iterator = iter(test_loader)
-    # cropped_sample, target, coord, nzhw, sample = next(iterator)
 
-    train_loader = DataLoader(
-        dataset,
-        batch_size=2,
-        shuffle=True,
-        num_workers=0,
-        pin_memory=True)
-
-    iterator = iter(train_loader)
-    # sample, label, coord, target = next(iterator)
-    from tqdm import tqdm
-    i = 0
-    for sample, label, coord, target in tqdm(iterator):
+    from show_results import plot_bbox
+    data_dir = config.DATA_DIR
+    pos_label_file = config.POS_LABEL_FILE
+    pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+    for i, info in enumerate(dataset.imageInfo):
         print(i)
-        i += 1
+        pstr = info["pstr"]
+        pid = int(pstr[7:])
+        if pid <= 51:
+            continue
+
+        filename = info["imagePath"]
+        try:
+            img = np.load(filename, allow_pickle=True)["image"]
+        except:
+            img = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+            img = img.squeeze(0)
+
+        filename = info["imagePath"]
+        pstr = info["pstr"]
+        dstr = info["date"]
+        thickness = info["sliceThickness"]
+        spacing = info["pixelSpacing"]
+        existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+        pos = pos_df[existId]
+        temp = pos[["x", "y", "z", "d"]].values
+        temp[:, 2] = temp[:, 2] - 1
+        temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
+        pos = temp[:, [2, 1, 0, 3]]
+
+        extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
+        ll = np.copy(pos).T
+        # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
+        # label2[3] = label2[3] * spacing[1] / resolution[1]
+        ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+        pos = ll[:4].T
+
+        for p in pos:
+            plot_bbox(None, img, p)
+
+    if subset == "inference":
+        inference_loader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=collate,
+            pin_memory=False)
+
+        iterator = iter(inference_loader)
+        cropped_sample, target, coord, nzhw, sample, info = next(iterator)
+
+    if subset == "test":
+        test_loader = DataLoader(
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            num_workers=0,
+            collate_fn=collate,
+            pin_memory=False)
+
+        iterator = iter(test_loader)
+        cropped_sample, target, coord, nzhw, sample = next(iterator)
+        i = 0
+        for sample, label, coord, nzhw, image in tqdm(iterator):
+            print(i)
+            i += 1
+
+    if subset == "train":
+        train_loader = DataLoader(
+            dataset,
+            batch_size=2,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=True)
+
+        iterator = iter(train_loader)
+        i = 0
+        for sample, label, coord, target in tqdm(iterator):
+            print(i)
+            i += 1
+    # sample, label, coord, target = next(iterator)
+
     # sample, label, coord, target = next(iterator)
 
     from detector_ben.utils import stack_nodule

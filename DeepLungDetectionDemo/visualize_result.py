@@ -58,9 +58,7 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
 #           "033942251-20130925",
 #           "014776371-20171117"]
 
-srslst = ["001132554-20150830",
-          "004292108-20160725",
-          "007379647-20151203"]
+srslst = ["022719876-20130502",]
 
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
@@ -72,7 +70,8 @@ data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-122426-test/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/bbox/"
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results_zshift/worker32_batch8_kim_masked_crop_nonPET_lr001_rs128_augNone/bbox/"
 
 pos_label_file = "pos_labels.csv"
 info_file = "CTinfo.npz"
@@ -90,9 +89,10 @@ spacing = imageInfo[imageId]["pixelSpacing"]
 existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
 pos = pos_df[existId]
 temp = pos[["x", "y", "z", "d"]].values
+temp[:, 2] = temp[:, 2] - 1
 temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
 ctlab = temp[:, [2, 1, 0, 3]]
-ctlab[:, 0] = ctlab[:, 0] - 1
+# ctlab[:, 0] = ctlab[:, 0] - 1
 
 try:
     imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
@@ -173,7 +173,7 @@ for row, pi in enumerate(pbb):
 pbb = np.delete(pbb, delete_row, 0)
 print("prediction shape is: ", pbb.shape)
 
-num_show = np.min([pbb.shape[0], 3])
+num_show = np.min([pbb.shape[0], 5])
 
 # print pbb.shape, pbb
 print('Detection Results according to confidence')

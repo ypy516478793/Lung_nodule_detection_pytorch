@@ -1,3 +1,17 @@
+"""
+Usage instructions:
+    python prepare.py ch_infopath \
+        -s="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
+    python prepare.py ass_pet \
+        -s="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
+    python prepare.py prep_methodist \
+        -s="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/" \
+        -r="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/" \
+        -m=True \
+        -c=True
+    python prepare.py prep_luna
+"""
+
 import os
 import shutil
 import numpy as np
@@ -23,6 +37,10 @@ from multiprocessing import Pool
 from functools import partial
 from tqdm import tqdm
 import pandas as pd
+import argparse
+import imgaug.augmenters as iaa
+import imgaug as ia
+from show_results import plot_bbox
 
 import warnings
 
@@ -62,7 +80,6 @@ config = {'train_data_path': ['data/raw_files/subset0/',
           'luna_label': 'data/annotations.csv'
           }
 
-
 def resample(imgs, spacing, new_spacing, order=2):
     if len(imgs.shape) == 3:
         new_shape = np.round(imgs.shape * spacing / new_spacing)
@@ -82,12 +99,10 @@ def resample(imgs, spacing, new_spacing, order=2):
     else:
         raise ValueError('wrong shape')
 
-
 def worldToVoxelCoord(worldCoord, origin, spacing):
     stretchedVoxelCoord = np.absolute(worldCoord - origin)
     voxelCoord = stretchedVoxelCoord / spacing
     return voxelCoord
-
 
 def load_itk_image(filename):
     with open(filename) as f:
@@ -109,7 +124,6 @@ def load_itk_image(filename):
 
     return numpyImage, numpyOrigin, numpySpacing, isflip
 
-
 def process_mask(mask):
     convex_mask = np.copy(mask)
     for i_layer in range(convex_mask.shape[0]):
@@ -125,7 +139,6 @@ def process_mask(mask):
     dilatedMask = binary_dilation(convex_mask, structure=struct, iterations=10)
     return dilatedMask
 
-
 def lumTrans(img):
     lungwin = np.array([-1200., 600.])
     newimg = (img - lungwin[0]) / (lungwin[1] - lungwin[0])
@@ -133,7 +146,6 @@ def lumTrans(img):
     newimg[newimg > 1] = 1
     newimg = (newimg * 255).astype('uint8')
     return newimg
-
 
 def binarize_per_slice(image, spacing, intensity_th=-600, sigma=1, area_th=30, eccen_th=0.99, bg_patch_size=10):
     bw = np.zeros(image.shape, dtype=bool)
@@ -165,7 +177,6 @@ def binarize_per_slice(image, spacing, intensity_th=-600, sigma=1, area_th=30, e
         bw[i] = current_bw
 
     return bw
-
 
 def all_slice_analysis(bw, spacing, cut_num=0, vol_limit=[0.68, 8.2], area_th=6e3, dist_th=62):
     # in some cases, several top layers need to be removed first
@@ -230,7 +241,6 @@ def all_slice_analysis(bw, spacing, cut_num=0, vol_limit=[0.68, 8.2], area_th=6e
 
     return bw, len(valid_label)
 
-
 def fill_hole(bw):
     # fill 3d holes
     label = measure.label(~bw)
@@ -240,7 +250,6 @@ def fill_hole(bw):
     bw = ~np.in1d(label, list(bg_label)).reshape(label.shape)
 
     return bw
-
 
 def two_lung_only(bw, spacing, max_iter=22, max_ratio=4.8):
     def extract_main(bw, cover=0.95):
@@ -314,7 +323,6 @@ def two_lung_only(bw, spacing, max_iter=22, max_ratio=4.8):
 
     return bw1, bw2, bw
 
-
 def step1_python_tianchi(case_path):
     # case = load_scan(case_path)
     # case_pixels, spacing = get_pixels_hu(case)
@@ -341,7 +349,6 @@ def step1_python_tianchi(case_path):
     bw = fill_hole(bw)
     bw1, bw2, bw = two_lung_only(bw, spacing)
     return case_pixels, bw1, bw2, spacing, origin, isflip
-
 
 def savenpy(id, annos, filelist, data_path, prep_folder):
     resolution = np.array([1, 1, 1])
@@ -434,7 +441,6 @@ def savenpy(id, annos, filelist, data_path, prep_folder):
     np.save(os.path.join(prep_folder, name + '_label.npy'), label2)
     print(name)
 
-
 def full_prep(train=True, val=True, test=True):
     warnings.filterwarnings("ignore")
     # preprocess_result_path = './prep_result'
@@ -519,7 +525,6 @@ def full_prep(train=True, val=True, test=True):
             print('end test preprocessing')
     f = open(finished_flag, "w+")
 
-
 def splitvaltestcsv():
     testfiles = []
     for f in os.listdir(config['test_data_path']):
@@ -546,7 +551,6 @@ def splitvaltestcsv():
     for line in valcsvlines:
         valfcsv.writerow(line)
     valf.close()
-
 
 def savenpy_luna_raw(id, annos, filelist, luna_segment, luna_data, savepath):
     islabel = True
@@ -630,7 +634,6 @@ def savenpy_luna_raw(id, annos, filelist, luna_segment, luna_data, savepath):
 
     print(name)
 
-
 def savenpy_luna(id, annos, filelist, luna_segment, luna_data, savepath):
     islabel = True
     isClean = True
@@ -712,7 +715,6 @@ def savenpy_luna(id, annos, filelist, luna_segment, luna_data, savepath):
 
     print(name)
 
-
 def preprocess_luna():
     luna_segment = config['luna_segment']
     savepath = config['preprocess_result_path']
@@ -748,7 +750,6 @@ def preprocess_luna():
     print('end preprocessing luna')
     f = open(finished_flag, "w+")
 
-
 def change_root_info(dst_dir):
     file = os.path.join(dst_dir, "CTinfo.npz")
     infos = np.load(file, allow_pickle=True)["info"]
@@ -761,7 +762,6 @@ def change_root_info(dst_dir):
     shutil.move(file, os.path.join(dst_dir, "CTinfo_old.npz"))
     np.savez_compressed(file, info=infos)
     print("Save all scan infos to {:s}".format(file))
-
 
 def make_lungmask(img, display=False):
     raw_img = np.copy(img)
@@ -843,7 +843,6 @@ def make_lungmask(img, display=False):
         plt.show()
     return mask * raw_img, mask
 
-
 def mask_scan(images):
     masked_images = []
     masks = []
@@ -855,7 +854,6 @@ def mask_scan(images):
     masked_images = np.stack(masked_images)
     masks = np.stack(masks)
     return masked_images, masks
-
 
 def prepare_cropped_labels(save_dir):
     info_path = os.path.join(save_dir, "CTinfo.npz")
@@ -883,11 +881,28 @@ def prepare_cropped_labels(save_dir):
 def prepare_masked_images(root_dir, save_dir):
     info_path = os.path.join(root_dir, "CTinfo.npz")
     infos = np.load(info_path, allow_pickle=True)["info"]
-    i = 0
     for info in tqdm(infos):
-        i = i + 1
-        # if i < 7:
-        #     continue
+        s = info["imagePath"].find("Lung_patient")
+        save_path = os.path.join(save_dir, info["imagePath"][s:].replace("\\", "/"))
+        load_path = os.path.join(root_dir, info["imagePath"][s:].replace("\\", "/"))
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        imgs = np.load(load_path, allow_pickle=True)["image"]
+        imgs = mask_scan(imgs)
+        imgs = lumTrans(imgs)
+
+        info["imagePath"] = save_path
+        np.savez_compressed(save_path, image=imgs, info=info)
+        print("Save masked images to {:s}".format(save_path))
+
+    new_info_path = os.path.join(save_dir, "CTinfo.npz")
+    np.savez_compressed(new_info_path, info=infos)
+    print("Save all scan infos to {:s}".format(new_info_path))
+
+def prepare_masked_cropped_images(root_dir, save_dir):
+    info_path = os.path.join(root_dir, "CTinfo.npz")
+    infos = np.load(info_path, allow_pickle=True)["info"]
+    for info in tqdm(infos):
         s = info["imagePath"].find("Lung_patient")
         save_path = os.path.join(save_dir, info["imagePath"][s:].replace("\\", "/"))
         load_path = os.path.join(root_dir, info["imagePath"][s:].replace("\\", "/"))
@@ -918,11 +933,6 @@ def prepare_masked_images(root_dir, save_dir):
         # np.save(os.path.join(savepath, name+'_origin.npy'), origin)
         np.savez_compressed(os.path.join(savepath, name+'_mask.npz'), masks=masks)
 
-
-    #     info["imagePath"] = save_path
-    #     np.savez_compressed(save_path, image=imgs, info=info)
-    #     print("Save masked images to {:s}".format(save_path))
-    #
     new_info_path = os.path.join(save_dir, "CTinfo.npz")
     np.savez_compressed(new_info_path, info=infos)
     print("Save all scan infos to {:s}".format(new_info_path))
@@ -963,29 +973,181 @@ def assign_PET_label(dst_dir):
     np.savez_compressed(file, info=infos)
     print("Save all scan infos to {:s}".format(file))
 
+def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
+    spacing = map(float, ([thickness] + list(spacing)))
+    spacing = np.array(list(spacing))
+    resize_factor = spacing / new_spacing
+    resize_factor = resize_factor[::-1]
+    label[:3] = np.round(label[:3] * resize_factor)
+    label[3] = label[3] * resize_factor[1]
+    return label
+
+# def data_augmentation(root_dir, save_dir):
+#     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+#     aug_options = ["flip_rot"]
+#     seq = iaa.Sequential([iaa.Fliplr(0.5),
+#                            iaa.Flipud(0.5),
+#                            sometimes(iaa.Rot90([1, 3])),
+#                            sometimes(iaa.Affine(rotate=(-45, 45))),
+#                            iaa.TranslateY(px=(-40, 40)),
+#                            iaa.TranslateX(px=(-40, 40)),
+#                            ])
+#
+#     info_path = os.path.join(root_dir, "CTinfo.npz")
+#     infos = np.load(info_path, allow_pickle=True)["info"]
+#     i = 0
+#
+#     pos_label_file = "pos_labels.csv"
+#     pos_df = pd.read_csv(os.path.join(root_dir, pos_label_file), dtype={"MRN": str, "date": str})
+#
+#     for aug_op in aug_options:
+#         if aug_op == "flip_rot":
+#             augmentor = iaa.Sequential([iaa.Fliplr(0.5), iaa.Rot90([0, 3])])
+#         elif aug_op == "gamma_contrast":
+#             augmentor = iaa.GammaContrast((2.0))
+#         elif aug_op == "shift":
+#             augmentor = iaa.Sequential([iaa.TranslateY(px=(-40, 40)), iaa.TranslateX(px=(-40, 40))])
+#         for info in tqdm(infos):
+#             i = i + 1
+#             # if i < 7:
+#             #     continue
+#             s = info["imagePath"].find("Lung_patient")
+#             save_path = os.path.join(save_dir, aug_op ,info["imagePath"][s:].replace("\\", "/"))
+#             load_path = os.path.join(root_dir, info["imagePath"][s:].replace("\\", "/"))
+#             os.makedirs(os.path.dirname(save_path), exist_ok=True)
+#
+#             imgs = np.load(load_path, allow_pickle=True)["image"]
+#             imgs, masks = mask_scan(imgs)
+#             imgs = lumTrans(imgs)
+#
+#             zz, yy, xx = np.where(masks)
+#             box = np.array([[np.min(zz), np.max(zz)], [np.min(yy), np.max(yy)], [np.min(xx), np.max(xx)]])
+#             box = np.floor(box).astype('int')
+#             margin = 5
+#             extendbox = np.vstack([np.max([[0, 0, 0], box[:, 0] - margin], 0),
+#                                    np.min([masks.shape, box[:, 1] + 2 * margin], axis=0).T]).T
+#             sliceim = imgs[extendbox[0, 0]:extendbox[0, 1],
+#                       extendbox[1, 0]:extendbox[1, 1],
+#                       extendbox[2, 0]:extendbox[2, 1]]
+#             sliceim = sliceim[np.newaxis, ...]
+#
+#             thickness, spacing = info["sliceThickness"], info["pixelSpacing"]
+#             pstr = info["pstr"]
+#             dstr = info["date"]
+#             patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
+#             assert patient_colname in pos_df
+#             existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
+#             pos = pos_df[existId][["x", "y", "z", "d"]].values
+#             pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
+#             pos = pos[:, [2, 1, 0, 3]]
+#
+#
+#             if len(pos) == 0:
+#                 l = np.array([[0, 0, 0, 0]])
+#             else:
+#                 ll = np.copy(pos).T
+#                 # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
+#                 # label2[3] = label2[3] * spacing[1] / resolution[1]
+#                 ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+#                 l = ll[:4].T
+#
+#             bb = []
+#             for li in l:
+#                 bb.append(ia.BoundingBox(x1=li[2] - li[3] / 2, y1=li[1] - li[3] / 2, x2=li[2] + li[3] / 2, y2=li[1] + li[3] / 2))
+#             imgs_aug = []
+#             for ii in range(len(sliceim[0])):
+#                 img_aug, bbs_aug = augmentor(images=sliceim[0][ii], bounding_boxes=bb)
+#                 imgs_aug.append(img_aug)
+#
+#             d = bbs_aug.y2 - bbs_aug.y1
+#             x = (bbs_aug.x1 + bbs_aug.x2) / 2
+#             y = (bbs_aug.y1 + bbs_aug.y2) / 2
+#             plot_bbox(None, img_aug, (y, x, d), label=None, show=True)
+#
+#             savepath = os.path.dirname(save_path)
+#             name = os.path.basename(save_path).strip(".npz")
+#             # spacing = np.array([1, 1, 1])
+#             # origin = np.array([0, 0, 0])
+#             np.savez_compressed(os.path.join(savepath, name + '_clean.npz'), image=sliceim, info=info)
+#             # np.save(os.path.join(savepath, name+'_spacing.npy'), spacing)
+#             np.savez_compressed(os.path.join(savepath, name + '_extendbox.npz'), extendbox=extendbox)
+#             # np.save(os.path.join(savepath, name+'_origin.npy'), origin)
+#             np.savez_compressed(os.path.join(savepath, name + '_mask.npz'), masks=masks)
+#
+#     #     info["imagePath"] = save_path
+#     #     np.savez_compressed(save_path, image=imgs, info=info)
+#     #     print("Save masked images to {:s}".format(save_path))
+#     #
+#         new_info_path = os.path.join(save_dir, "CTinfo.npz")
+#         np.savez_compressed(new_info_path, info=infos)
+#         print("Save all scan infos to {:s}".format(new_info_path))
 
 if __name__ == '__main__':
-    # preprocess_luna()
+
+    # list_float_parser = lambda x: [float(i) for i in x.strip("[]").split(",")] if x else []
+    parser = argparse.ArgumentParser(description="prepare script")
+    parser.add_argument('command', choices=["prep_luna", "prep_methodist", "ch_infopath", "ass_pet"],
+                        help="options: [prep_luna, prep_methodist, ch_infopath, ass_pet]", default="prep_methodist")
+    parser.add_argument('-s', '--save_dir', type=str, help='save directory', default=None)
+    parser.add_argument('-r', '--root_dir', type=str, help='root directory', default=None)
+    parser.add_argument('-m', '--mask', type=eval, help='only apply mask in preprocessing', default=True)
+    parser.add_argument('-c', '--crop', type=eval, help='crop masked images in preprocessing', default=True)
+    args = parser.parse_args()
+
+    # MASK_CROP = False
+    # MASK_LUNG = False
+    # PET_CT = False
+    #
+    # parser.add_argument('--detp', type=list_float_parser, help='detect probability threshold', default="[0]")
+    # parser.add_argument('--nmsthresh', type=list_float_parser, help='nms threshold', default="[0.1]")
+    # parser.add_argument('--iouthresh', type=float, help='iou threshold', default=None)
+    # parser.add_argument('--result_dir', type=str, help='result directory',
+    #                     default="../detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/")
+    # parser.add_argument('--data_dir', type=str, help='data file directory',
+    #                     default="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/")
+    # parser.add_argument('--extra_str', type=str, help='extra string for data', default="masked_cropped")
+    # parser.add_argument('--kfold', type=int, help='kfold split', default=None)
+
+    root_dir = args.root_dir
+    save_dir = args.save_dir
+
+    if args.command == "prep_luna":
+        preprocess_luna()
+    elif args.command == "prep_methodist":
+        if args.mask:
+            if args.crop:
+                prepare_masked_cropped_images(root_dir, save_dir)
+            else:
+                prepare_masked_images(root_dir, save_dir)
+    elif args.command == "ch_infopath":
+        change_root_info(save_dir)
+    elif args.command == "ass_pet":
+        assign_PET_label(save_dir)
+
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
 
     # dst_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
-
+    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled"
     # change_root_info(dst_dir)
     # assign_PET_label(dst_dir)
 
-    root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/"
+    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/"
     # root_dir = "/data/pyuan2/Methodist_incidental/"
     #
-    save_dir = os.path.join(root_dir, "data_kim/masked_with_crop/")
-    root_dir = os.path.join(root_dir, "data_kim/labeled/")
-    # # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_TC/masked_first/"
-    # # root_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Incidental_lung/data_TC/labeled/"
+    # save_dir = os.path.join(root_dir, "data_kim/masked_with_crop/")
+    # root_dir = os.path.join(root_dir, "data_kim/labeled/")
+    # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_TC/masked_first/"
+    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Incidental_lung/data_TC/labeled/"
     #
-    # # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
-    # # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
+    # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
+    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
     #
-    prepare_masked_images(root_dir, save_dir)
+    # prepare_masked_images(root_dir, save_dir)
     # prepare_cropped_labels(save_dir)
+
+    # save_dir = os.path.join(root_dir, "data_kim/")
+    # root_dir = os.path.join(root_dir, "data_kim/labeled/")
+    # data_augmentation(root_dir, save_dir)

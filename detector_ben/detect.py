@@ -17,10 +17,10 @@ import sys
 sys.path.append("../")
 
 import os
-# import matplotlib as mpl
-# if os.environ.get('DISPLAY','') == '':
-#     print('no display found. Using non-interactive Agg backend')
-#     mpl.use('Agg')
+import matplotlib as mpl
+if os.environ.get('DISPLAY','') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
 
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
@@ -113,6 +113,9 @@ parser.add_argument("--contrast", default=False, type=eval, help="contrast")
 parser.add_argument("--bright", default=False, type=eval, help="bright")
 parser.add_argument("--sharp", default=False, type=eval, help="sharp")
 parser.add_argument("--splice", default=False, type=eval, help="splice")
+
+parser.add_argument("--kfold", default=None, type=int, help="number of kfold for train_val")
+parser.add_argument("--split_id", default=None, type=int, help="split id when use kfold")
 
 parser.add_argument("--n_test", default=2, type=int, metavar="N",
                     help="number of gpu for test")
@@ -208,6 +211,9 @@ def main():
         config.AUGTYPE["bright"] = args.bright
         config.AUGTYPE["sharp"] = args.sharp
         config.AUGTYPE["splice"] = args.splice
+
+        config.KFOLD = args.kfold
+        config.SPLIT_ID = args.split_id
         Dataset = MethodistFull
 
     ## Specify the save directory

@@ -632,6 +632,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, help='data file directory', 
                         default="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/")
     parser.add_argument('--extra_str', type=str, help='extra string for data', default="masked_cropped")
+    parser.add_argument('--kfold', type=int, help='kfold split', default=None)
 
     args = parser.parse_args()
 
