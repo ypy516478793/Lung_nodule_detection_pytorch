@@ -755,7 +755,13 @@ def change_root_info(dst_dir):
     infos = np.load(file, allow_pickle=True)["info"]
     for info in infos:
         s = info["imagePath"].find("Lung_patient")
-        info["imagePath"] = os.path.join(dst_dir, info["imagePath"][s:].replace("\\", "/"))
+        subPath = info["imagePath"][s:].replace("\\", "/")
+        if not os.path.exists(os.path.join(dst_dir, subPath)):
+            subPathList =subPath.split("/")
+            subPathList[0] = subPathList[0].rsplit("_", 1)[0]
+            subPath = "/".join(subPathList)
+            assert os.path.exists(os.path.join(dst_dir, subPath))
+        info["imagePath"] = os.path.join(dst_dir, subPath)
     print(infos)
 
     import shutil
