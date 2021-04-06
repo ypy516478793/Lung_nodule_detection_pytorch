@@ -589,7 +589,8 @@ def collect(seriesuids_path):
         pos = pos_df[existId]
         temp0 = pos[["x", "y", "z", "d"]].values
 
-        temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
+        if pos_label_file != "pos_labels_norm.csv":
+            temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
         # pos = pos[:, [2, 1, 0, 3]]
         if "crop" in seriesuids_path:
             extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
@@ -659,7 +660,8 @@ if __name__ == '__main__':
     # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
     # data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
     data_dir = args.data_dir
-    pos_label_file = "pos_labels.csv"
+    # pos_label_file = "pos_labels.csv"
+    pos_label_file = "pos_labels_norm.csv"
     info_file = "CTinfo.npz"
 
     seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")

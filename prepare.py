@@ -10,6 +10,8 @@ Usage instructions:
         -m=True \
         -c=True
     python prepare.py prep_luna
+    python prepare.py get_info \
+        -r="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled"
 """
 
 import os
@@ -759,8 +761,10 @@ def change_root_info(dst_dir):
         if not os.path.exists(os.path.join(dst_dir, subPath)):
             subPathList =subPath.split("/")
             subPathList[0] = subPathList[0].rsplit("_", 1)[0]
-            subPath = "/".join(subPathList)
-            assert os.path.exists(os.path.join(dst_dir, subPath))
+            if not os.path.exists(os.path.exists(os.path.join(dst_dir, "/".join(subPathList)))):
+                subPath = subPath.replace(".npz", "_extendbox.npz")
+            # subPath = "/".join(subPathList)
+                assert os.path.exists(os.path.join(dst_dir, subPath))
         info["imagePath"] = os.path.join(dst_dir, subPath)
     print(infos)
 
@@ -914,6 +918,11 @@ def prepare_masked_cropped_images(root_dir, save_dir):
         load_path = os.path.join(root_dir, info["imagePath"][s:].replace("\\", "/"))
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
+        savepath = os.path.dirname(save_path)
+        name = os.path.basename(save_path).strip(".npz")
+        if os.path.exists(os.path.join(savepath, name + '_extendbox.npz')):
+            continue
+
         imgs = np.load(load_path, allow_pickle=True)["image"]
         imgs, masks = mask_scan(imgs)
         imgs = lumTrans(imgs)
@@ -929,8 +938,8 @@ def prepare_masked_cropped_images(root_dir, save_dir):
                        extendbox[2, 0]:extendbox[2, 1]]
         sliceim = sliceim[np.newaxis, ...]
 
-        savepath = os.path.dirname(save_path)
-        name = os.path.basename(save_path).strip(".npz")
+        # savepath = os.path.dirname(save_path)
+        # name = os.path.basename(save_path).strip(".npz")
         # spacing = np.array([1, 1, 1])
         # origin = np.array([0, 0, 0])
         np.savez_compressed(os.path.join(savepath, name+'_clean.npz'), image=sliceim, info=info)
@@ -962,7 +971,8 @@ def assign_PET_label(dst_dir):
                 shape = np.load(info['imagePath'])["image"].shape
             except FileNotFoundError:
                 shape = np.load(info['imagePath'].replace(".npz", "_clean.npz"))["image"].shape
-            if not shape[1] >= 500:
+            num_slices = shape[0] if len(shape) == 3 else shape[1]
+            if not num_slices >= 500:
                 print("index {:}, series is {:}, shape is {:}".format(i, series, shape))
         else:
             info["PET"] = "N"
@@ -970,8 +980,10 @@ def assign_PET_label(dst_dir):
                 shape = np.load(info['imagePath'])["image"].shape
             except FileNotFoundError:
                 shape = np.load(info['imagePath'].replace(".npz", "_clean.npz"))["image"].shape
-            if not shape[1] < 500:
+            num_slices = shape[0] if len(shape) == 3 else shape[1]
+            if not num_slices < 500:
                 print("index {:}, series is {:}, shape is {:}".format(i, series, shape))
+        assert len(shape) == 3, "index {:}, series is {:}, shape is {:}".format(i, series, shape)
     print(infos)
 
     import shutil
@@ -979,14 +991,185 @@ def assign_PET_label(dst_dir):
     np.savez_compressed(file, info=infos)
     print("Save all scan infos to {:s}".format(file))
 
-def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
+def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1], imgshape=None):
+    """
+    :param label: (x, y, z, d) in original resolution
+    :param thickness: float z
+    :param spacing: original resolution, list [y, x]
+    :param new_spacing: new resolution, list [z, y, x]
+    :param imgshape: tuple, (#z, #y, #x)
+    :return:
+    """
+    label = label.astype(np.float)
     spacing = map(float, ([thickness] + list(spacing)))
     spacing = np.array(list(spacing))
     resize_factor = spacing / new_spacing
+    # new_shape = np.round(imgshape * resize_factor)
+    orishape = np.round(imgshape / resize_factor)
+    resize_factor = (np.array(imgshape) - 1) / (orishape - 1)
     resize_factor = resize_factor[::-1]
-    label[:3] = np.round(label[:3] * resize_factor)
+    label[:3] = np.round(label[:3] * resize_factor).astype(np.int)
     label[3] = label[3] * resize_factor[1]
+
     return label
+
+def remove_duplicate(imageInfo, exclude=[]):
+    for i, info in enumerate(imageInfo):
+        if info["date"] == "":
+            info["date"] = info["imagePath"].strip(".npz").split("-")[-1]
+
+    identifier_set = ["{:}-{:}".format(info["patientID"], info["date"]) for info in imageInfo]
+    remove_ids = []
+    from collections import Counter
+    cnt = Counter(identifier_set)
+    for k, v in cnt.items():
+        if k in exclude:
+            indices = [i for i, x in enumerate(identifier_set) if x == k]
+            remove_ids.append(*indices)
+        elif v > 1:
+            indices = [i for i, x in enumerate(identifier_set) if x == k]
+            remove_ids.append(*indices[:-1])
+    imageInfo = np.delete(imageInfo, remove_ids)
+    return imageInfo
+
+# from show_results import plot_bbox
+# image = np.load(info["imagePath"])["image"]
+# thickness, spacing = info["sliceThickness"], info["pixelSpacing"]
+# pos = np.array([202,	337.5,	123,	49.04079934])
+# pos = resample_pos(pos, thickness, spacing, imgshape=image.shape)
+# pos = pos[[2, 1, 0, 3]]
+# plot_bbox(None, image, pos)
+
+
+def show_image(info, z, new_thickness=1):
+    image = np.load(info["imagePath"])["image"]
+    thickness, spacing = int(info["sliceThickness"]), info["pixelSpacing"]
+    factor = thickness / new_thickness
+    ori_shape = np.round(image.shape[0] / factor)
+    factor = (image.shape[0] - 1) / (ori_shape - 1)
+    new_z = np.round(z * factor).astype(np.int)
+    plt.imshow(image[new_z], cmap="gray")
+    plt.show()
+
+
+def check_label_existance(root_dir, save_dir):
+    os.makedirs(save_dir, exist_ok=True)
+    from PIL import Image
+    exclude = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
+               "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
+               "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
+               "041293960-20170227", "000033167-20131213", "022528020-20180525", "025432105-20180730",
+               "000361956-20180625"]
+    pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_norm.csv"), dtype={"date": str})
+    checklist_df = pd.read_excel(os.path.join(root_dir, "checklist.xlsx"), skiprows=1, dtype={"date": str})
+    imageInfo = np.load(os.path.join(root_dir, "CTinfo.npz"), allow_pickle=True)["info"]
+    imageInfo = remove_duplicate(imageInfo, exclude)
+    no_pos = []
+    for info in tqdm(imageInfo):
+        # imgshape = np.load(info["imagePath"])["image"].shape
+
+        pstr = info["pstr"]
+        dstr = info["date"]
+        existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+        pos = pos_df[existId][["x", "y", "z", "d"]].values
+        if len(pos) == 0:
+            no_pos.append(info)
+            save_name = "{:s}_{:s}_{:s}".format(info["pstr"], info["patientID"], info["date"])
+            save_name += "_PET" if info["PET"] == "Y" else ""
+            img = np.load(info["imagePath"])["image"]
+            img = lumTrans(img)
+            thickness = info["sliceThickness"]
+
+            matchId = (checklist_df["Patient\n Index"] == pstr) & (checklist_df["date"] == dstr)
+            assert matchId.sum() > 0, "no matches, pstr {:}, dstr {:}".format(pstr, dstr)
+            z = checklist_df[matchId]["z"].values
+            nodule_idx = checklist_df[matchId]["nodule\nIndex"].values
+            # get norm_z
+            factor = thickness / 1
+            ori_shape = np.round(img.shape[0] / factor)
+            factor = (img.shape[0] - 1) / (ori_shape - 1)
+            for zi, ni in zip(z, nodule_idx):
+                zi = zi - 1
+                norm_z = np.round(zi * factor).astype(np.int)
+                c_img = img[norm_z]
+                save_path = os.path.join(save_dir, save_name + "_no{:d}_z{:d}.png".format(ni, norm_z))
+                PILimg = Image.fromarray(c_img)
+                PILimg.save(save_path)
+
+    from natsort import natsorted
+    no_pos = natsorted(np.array(no_pos))
+    print(np.array(no_pos))
+
+def gt_labels_raw2normalized(root_dir):
+
+    pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_raw.csv"), dtype={"date": str})
+    imageInfo = np.load(os.path.join(root_dir, "CTinfo.npz"), allow_pickle=True)["info"]
+    imageInfo = remove_duplicate(imageInfo)
+
+    # for info in imageInfo:
+    #     imgshape = np.load(info["imagePath"])["image"].shape
+    #     thickness, spacing = info["sliceThickness"], info["pixelSpacing"]
+    #     pstr = info["pstr"]
+    #     dstr = info["date"]
+    #     existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+    #     pos = pos_df[existId][["x", "y", "z", "d"]].values
+    #
+    #     pos[:, 2] = pos[:, 2] - 1
+    #     pos = np.array([resample_pos(p, thickness, spacing, imgshape=imgshape) for p in pos])
+    drop_rows = []
+    for i in tqdm(range(len(pos_df))):
+        pos_info = pos_df.iloc[i]
+        pstr = pos_info["patient"]
+        dstr = pos_info["date"]
+        ids = [id for id in range(len(imageInfo)) if imageInfo[id]["pstr"] == pstr and imageInfo[id]["date"] == dstr]
+        assert len(ids) <= 1, "{:} \n {:}".format(ids, pos_info)
+        if len(ids) == 0:
+            print(pos_info["patient"])
+            drop_rows.append(pos_df.index[i])
+            continue
+        imageId = ids[0]
+        imagePath = imageInfo[imageId]["imagePath"]
+        thickness = imageInfo[imageId]["sliceThickness"]
+        spacing = imageInfo[imageId]["pixelSpacing"]
+        # resolution = np.array(list(map(float, ([thickness] + list(spacing)))))
+        # new_resolution = np.array([1, 1, 1])
+        raw_pos = pos_info[["x", "y", "z", "d"]].values.astype(np.float)
+        raw_pos[2] = raw_pos[2] - 1
+        image = np.load(imagePath, allow_pickle=True)["image"]
+        norm_pos = resample_pos(raw_pos, thickness, spacing, new_spacing=[1, 1, 1], imgshape=image.shape)
+        pos_df.loc[pos_df.index[i], ["x", "y", "z", "d"]] = norm_pos
+    pos_df = pos_df.drop(index=drop_rows)
+    pos_df.to_csv(os.path.join(root_dir, "pos_labels_norm.csv"), index=False)
+    print("save to {:s}".format(os.path.join(root_dir, "pos_labels_norm.csv")))
+
+
+
+
+def get_infos_from_npz(root_dir):
+    file = os.path.join(root_dir, "CTinfo.npz")
+    # infos = np.load(file, allow_pickle=True)["info"]
+    import shutil
+    shutil.move(file, os.path.join(root_dir, "CTinfo_old.npz"))
+
+    new_infos = []
+    all_patients = [i for i in os.listdir(root_dir) if
+                    os.path.isdir(os.path.join(root_dir, i)) and i[:4] == "Lung"]
+    from natsort import natsorted
+    all_patients = natsorted(all_patients)
+    for i in range(len(all_patients)):
+        patientFolder = os.path.join(root_dir, all_patients[i])
+        npz_files = [i for i in os.listdir(patientFolder) if i.endswith(".npz")]
+        for nf in npz_files:
+            info = np.load(os.path.join(patientFolder, nf))["info"].tolist()
+            new_infos.append(info)
+
+    CTinfoPath = os.path.join(root_dir, "CTinfo.npz")
+    np.savez_compressed(CTinfoPath, info=new_infos)
+    print("Save all scan infos to {:s}".format(CTinfoPath))
+    print("length is: ", len(new_infos))
+    [print(i) for i in new_infos]
+
+    change_root_info(root_dir)
 
 # def data_augmentation(root_dir, save_dir):
 #     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -1092,8 +1275,8 @@ if __name__ == '__main__':
 
     # list_float_parser = lambda x: [float(i) for i in x.strip("[]").split(",")] if x else []
     parser = argparse.ArgumentParser(description="prepare script")
-    parser.add_argument('command', choices=["prep_luna", "prep_methodist", "ch_infopath", "ass_pet"],
-                        help="options: [prep_luna, prep_methodist, ch_infopath, ass_pet]", default="prep_methodist")
+    parser.add_argument('command', choices=["prep_luna", "prep_methodist", "ch_infopath", "ass_pet", "get_info", "raw2norm", "check_label"],
+                        help="options: [prep_luna, prep_methodist, ch_infopath, ass_pet, get_info, raw2norm, check_label]", default="prep_methodist")
     parser.add_argument('-s', '--save_dir', type=str, help='save directory', default=None)
     parser.add_argument('-r', '--root_dir', type=str, help='root directory', default=None)
     parser.add_argument('-m', '--mask', type=eval, help='only apply mask in preprocessing', default=True)
@@ -1129,7 +1312,12 @@ if __name__ == '__main__':
         change_root_info(save_dir)
     elif args.command == "ass_pet":
         assign_PET_label(save_dir)
-
+    elif args.command == "get_info":
+        get_infos_from_npz(root_dir)
+    elif args.command == "raw2norm":
+        gt_labels_raw2normalized(root_dir)
+    elif args.command == "check_label":
+        check_label_existance(root_dir, save_dir)
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"

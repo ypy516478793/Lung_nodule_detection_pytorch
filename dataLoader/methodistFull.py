@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from PIL import Image, ImageEnhance
 from skimage import morphology
 from skimage import measure
+from tqdm import tqdm
 import imgaug.augmenters as iaa
 import pandas as pd
 import numpy as np
@@ -15,22 +16,21 @@ import torch
 import time
 import os
 
+exclude = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
+           "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
+           "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
+           "041293960-20170227", "000033167-20131213", "022528020-20180525", "025432105-20180730",
+           "000361956-20180625"]
+
 class IncidentalConfig(object):
-    CROP_LUNG = True
-    MASK_LUNG = True
+    CROP_LUNG = False
+    MASK_LUNG = False
     PET_CT = False
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/"
     ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
 
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-    if MASK_LUNG:
-        if CROP_LUNG:
-            DATA_DIR = os.path.join(ROOT_DIR, "masked_with_crop")
-        else:
-            DATA_DIR = os.path.join(ROOT_DIR, "masked_first")
-    else:
-        DATA_DIR = os.path.join(ROOT_DIR, "labeled")
 
     # if CROP_LUNG:
     #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
@@ -46,7 +46,8 @@ class IncidentalConfig(object):
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
-    POS_LABEL_FILE = "pos_labels.csv"
+    # POS_LABEL_FILE = "pos_labels.csv"
+    POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
     # POS_LABEL_FILE = None
@@ -88,6 +89,15 @@ class IncidentalConfig(object):
     SPLIT_SEED = None
     LIMIT_TRAIN = None
     SPLIT_ID = None
+
+    def set_data_dir(self):
+        if self.MASK_LUNG:
+            if self.CROP_LUNG:
+                self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_with_crop")
+            else:
+                self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_first")
+        else:
+            self.DATA_DIR = os.path.join(self.ROOT_DIR, "labeled")
 
     def display(self):
         """Display Configuration values."""
@@ -309,11 +319,21 @@ class MethodistFull(Dataset):
         self.crop = Crop(config)
         self.mask_lung = config.MASK_LUNG
         self.pet_ct = config.PET_CT
+        self.remove_duplicate()
         self.screen()
+        self.__check_labels__()
         self.label_mapping = LabelMapping(config, subset)
         self.kfold = KFold(n_splits=config.KFOLD, random_state=config.KFOLD_SEED) if config.KFOLD else None
         self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN,
                          kfold=self.kfold, splitId=config.SPLIT_ID)
+
+        # ---- check labels ---- #
+        # for info in self.imageInfo:
+        #     img = np.load(info["imagePath"], allow_pickle=True)["image"]
+        #     img = lumTrans(img)
+        #     pos = self.load_pos(info)
+        #     for p in pos:
+        #         plot_bbox(None, img, p, title=info["pstr"])
 
         # self.aug_op = "flip_rot"
         # self.augmentor = self.set_augment()
@@ -326,6 +346,13 @@ class MethodistFull(Dataset):
         #                            iaa.TranslateY(px=(-40, 40)),
         #                            iaa.TranslateX(px=(-40, 40)),
         #                            ])
+
+    def __check_labels__(self):
+        for info in tqdm(self.imageInfo):
+            pstr = info["pstr"]
+            dstr = info["date"]
+            existId = (self.pos_df["patient"] == pstr) & (self.pos_df["date"] == dstr)
+            assert existId.sum() > 0, "no matches, pstr {:}, dstr {:}".format(pstr, dstr)
 
     def set_augment(self):
         if self.aug_op == "flip_rot":
@@ -341,6 +368,24 @@ class MethodistFull(Dataset):
                                         iaa.TranslateY(px=(-40, 40)), iaa.TranslateX(px=(-40, 40))])
 
         return augmentor
+
+    def remove_duplicate(self):
+        for i, info in enumerate(self.imageInfo):
+            if info["date"] == "":
+                info["date"] = info["imagePath"].strip(".npz").split("-")[-1]
+
+        identifier_set = ["{:}-{:}".format(info["patientID"], info["date"]) for info in self.imageInfo]
+        remove_ids = []
+        from collections import Counter
+        cnt = Counter(identifier_set)
+        for k, v in cnt.items():
+            if k in exclude:
+                indices = [i for i, x in enumerate(identifier_set) if x == k]
+                remove_ids.append(*indices)
+            elif v > 1:
+                indices = [i for i, x in enumerate(identifier_set) if x == k]
+                remove_ids.append(*indices[:-1])
+        self.imageInfo = np.delete(self.imageInfo, remove_ids)
 
     def screen(self):
         '''
@@ -462,8 +507,8 @@ class MethodistFull(Dataset):
         assert patient_colname in self.pos_df
         existId = (self.pos_df[patient_colname] == pstr) & (self.pos_df["date"] == dstr)
         pos = self.pos_df[existId][["x", "y", "z", "d"]].values
-        pos[:, 2] = pos[:, 2] - 1  ## BUG FIXED: slice index begins with 1 in EPIC system
-        pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
+        # pos[:, 2] = pos[:, 2] - 1  ## BUG FIXED: slice index begins with 1 in EPIC system
+        # pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
         pos = pos[:, [2, 1, 0, 3]]
         pos = pos[pos[:, -1] < self.config.MAX_NODULE_SIZE]
 
@@ -622,13 +667,13 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torch.utils.tensorboard import SummaryWriter
     from torchvision.utils import make_grid
-    from tqdm import tqdm
 
     writer = SummaryWriter(os.path.join("Visualize", "MethodistFull"))
 
-    test = False
-    inference = True
+    test = True
+    inference = False
     config = IncidentalConfig()
+    config.set_data_dir()
     config.SPLIT_SEED = 128
     # config.LIMIT_TRAIN = args.limit_train
     # config.AUGTYPE["flip"] = args.flip
@@ -677,8 +722,8 @@ if __name__ == "__main__":
         existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
         pos = pos_df[existId]
         temp = pos[["x", "y", "z", "d"]].values
-        temp[:, 2] = temp[:, 2] - 1
-        temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
+        # temp[:, 2] = temp[:, 2] - 1
+        # temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
         pos = temp[:, [2, 1, 0, 3]]
 
         extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]

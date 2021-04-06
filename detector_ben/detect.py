@@ -105,6 +105,9 @@ parser.add_argument("--limit_train", default=None, type=float, metavar="N",
                     help="ratio of training size")
 
 # "flip": False, "swap": False, "scale": False, "rotate": False
+parser.add_argument("--mask", default=False, type=eval, help="mask lung")
+parser.add_argument("--crop", default=False, type=eval, help="crop lung")
+
 parser.add_argument("--flip", default=False, type=eval, help="flip")
 parser.add_argument("--swap", default=False, type=eval, help="swap")
 parser.add_argument("--scale", default=False, type=eval, help="scale")
@@ -203,6 +206,8 @@ def main():
         config = IncidentalConfig()
         config.SPLIT_SEED = args.rseed
         config.LIMIT_TRAIN = args.limit_train
+        config.MASK_LUNG = args.mask
+        config.CROP_LUNG = args.crop
         config.AUGTYPE["flip"] = args.flip
         config.AUGTYPE["swap"] = args.swap
         config.AUGTYPE["scale"] = args.scale
@@ -214,6 +219,7 @@ def main():
 
         config.KFOLD = args.kfold
         config.SPLIT_ID = args.split_id
+        config.set_data_dir()
         Dataset = MethodistFull
 
     ## Specify the save directory

@@ -58,12 +58,12 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
 #           "033942251-20130925",
 #           "014776371-20171117"]
 
-srslst = ["022719876-20130502",]
+srslst = ["000192476-20160614",]
 
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
-data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
+data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_with_crop/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/bbox/"
@@ -71,9 +71,10 @@ data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results_zshift/worker32_batch8_kim_masked_crop_nonPET_lr001_rs128_augNone/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results_zshift/worker32_batch8_kim_masked_crop_nonPET_lr001_rs128_augNone/bbox/"
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_mask_crop_nonPET_lr001_rs128_limit1.0/bbox/"
 
-pos_label_file = "pos_labels.csv"
+pos_label_file = "pos_labels_norm.csv"
 info_file = "CTinfo.npz"
 pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
 imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
@@ -89,8 +90,8 @@ spacing = imageInfo[imageId]["pixelSpacing"]
 existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
 pos = pos_df[existId]
 temp = pos[["x", "y", "z", "d"]].values
-temp[:, 2] = temp[:, 2] - 1
-temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
+# temp[:, 2] = temp[:, 2] - 1
+# temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
 ctlab = temp[:, [2, 1, 0, 3]]
 # ctlab[:, 0] = ctlab[:, 0] - 1
 

@@ -82,7 +82,7 @@ def add_bbox(ax, images, pred, label=None):
         else:
             print("no prediction or label is given!")
 
-def plot_bbox(savedir, images, pred, label=None, show=True):
+def plot_bbox(savedir, images, pred, label=None, show=True, title=None):
     '''
     plot center image with bbox
     :param images: CT scan, shape: (num_slices, h, w) or (h, w)
@@ -92,6 +92,8 @@ def plot_bbox(savedir, images, pred, label=None, show=True):
     '''
     fig, ax = plt.subplots(1)
     add_bbox(ax, images, pred, label)
+    if title:
+        plt.title(title)
     if show:
         plt.show()
     else:
