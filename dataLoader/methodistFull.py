@@ -327,6 +327,21 @@ class MethodistFull(Dataset):
         self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN,
                          kfold=self.kfold, splitId=config.SPLIT_ID)
 
+        # ---- plot bbox ---- #
+        # info = self.imageInfo[1]
+        # pstr = info["pstr"]
+        # # s = info["imagePath"].find("Lung_patient")
+        # # p = os.path.join("/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/labeled/",
+        # #                  info["imagePath"][s:].replace("\\", "/"))
+        # p = info["imagePath"]
+        # img = lumTrans(np.load(p)["image"])
+        # pos = self.load_pos(info)
+        # from show_results import plot_bbox
+        # save_dir = "reports"
+        # os.makedirs(save_dir, exist_ok=True)
+        # plot_bbox(os.path.join(save_dir, "{:s}_newLabel.png".format(pstr)), img, None, pos[0], show=False,
+        #           title="{:s}_newLabel".format(pstr))
+
         # ---- check labels ---- #
         # for info in self.imageInfo:
         #     img = np.load(info["imagePath"], allow_pickle=True)["image"]

@@ -1,5 +1,6 @@
 import matplotlib
 import numpy as np
+import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -22,6 +23,48 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
     label[:3] = np.round(label[:3] * resize_factor)
     label[3] = label[3] * resize_factor[1]
     return label
+
+def plot_bbox(savedir, images, pred, label=None, show=True, title=None, fontsize=10):
+    '''
+    plot center image with bbox
+    :param images: CT scan, shape: (num_slices, h, w) or (h, w)
+    :param label: coordinates & diameter (all in pixel space): (z, y, x, d) or (y, x, d)
+    :param savedir: save directory
+    :return: None
+    '''
+    fig, ax = plt.subplots(1)
+    if label is not None and pred is not None:
+        zp, yp, xp, dp = pred
+        zl, yl, xl, dl = label
+        ax.imshow(images[int(zl)], cmap="gray")
+        rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
+                                       facecolor='none')
+        ax.add_patch(rect_label)
+        if np.abs(zp - zl) <= dp:
+            rect_pred = patches.Rectangle((xp - dp / 2, yp - dp / 2), dp, dp, linewidth=1, edgecolor='r',
+                                          facecolor='none')
+            ax.add_patch(rect_pred)
+    elif label is not None:
+        zl, yl, xl, dl = label
+        ax.imshow(images[int(zl)], cmap="gray")
+        rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
+                                       facecolor='none')
+        ax.add_patch(rect_label)
+    elif pred is not None:
+        zp, yp, xp, dp = pred
+        ax.imshow(images[int(zp)], cmap="gray")
+        rect_pred = patches.Rectangle((xp - dp / 2, yp - dp / 2), dp, dp, linewidth=1, edgecolor='r',
+                                      facecolor='none')
+        ax.add_patch(rect_pred)
+    else:
+        print("no prediction or label is given!")
+    if title:
+        plt.title(title, fontsize=fontsize)
+    if show:
+        plt.show()
+    else:
+        plt.savefig(savedir + "_bbox.png")
+        plt.close()
 
 # # ## examples in demo
 # srslst = ['1.3.6.1.4.1.14519.5.2.1.6279.6001.208737629504245244513001631764',\
@@ -58,12 +101,13 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
 #           "033942251-20130925",
 #           "014776371-20171117"]
 
-srslst = ["000192476-20160614",]
+srslst = ["098120421-20121001",]
 
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
 data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_with_crop/"
+# data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210209-104946/bbox/"
@@ -72,7 +116,12 @@ data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_PET/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results_zshift/worker32_batch8_kim_masked_crop_nonPET_lr001_rs128_augNone/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_mask_crop_nonPET_lr001_rs128_limit1.0/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_mask_crop_nonPET_lr001_rs128_limit1.0/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_det/ection_pytorch/detector_ben/results/worker32_batch8_kim_mask_crop_nonPET_lr001_rs128_augAll_limit1.0/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_ben_nonPET_lr001_rs42_limit1.0_5fold_0/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_0/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_augAll_5fold_0/bbox/"
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_4/bbox/"
 
 pos_label_file = "pos_labels_norm.csv"
 info_file = "CTinfo.npz"
@@ -121,15 +170,17 @@ print("label shape is: ", ctlab.shape)
 
 for idx in range(ctlab.shape[0]):
     if abs(ctlab[idx,0])+abs(ctlab[idx,1])+abs(ctlab[idx,2])+abs(ctlab[idx,3])==0: continue
-    fig = plt.figure()
-    z, x, y = int(ctlab[idx,0]), int(ctlab[idx,1]), int(ctlab[idx,2])
-    dat0 = np.array(ctdat[0, z, :, :])
-    dat0[max(0,x-10):min(dat0.shape[0],x+10), max(0,y-10)] = 255
-    dat0[max(0,x-10):min(dat0.shape[0],x+10), min(dat0.shape[1],y+10)] = 255
-    dat0[max(0,x-10), max(0,y-10):min(dat0.shape[1],y+10)] = 255
-    dat0[min(dat0.shape[0],x+10), max(0,y-10):min(dat0.shape[1],y+10)] = 255
-    plt.imshow(dat0, cmap="gray")
-    plt.title("series {:s} \n label {:s}".format(srslst[showid], str(ctlab[idx])), fontsize=10)
+    title = "series {:s} \n label {:s}".format(srslst[showid], str(ctlab[idx]))
+    plot_bbox(title, ctdat[0], None, ctlab[idx], show=False, title=title, fontsize=10 )
+    # fig = plt.figure()
+    # z, x, y = int(ctlab[idx,0]), int(ctlab[idx,1]), int(ctlab[idx,2])
+    # dat0 = np.array(ctdat[0, z, :, :])
+    # dat0[max(0,x-10):min(dat0.shape[0],x+10), max(0,y-10)] = 255
+    # dat0[max(0,x-10):min(dat0.shape[0],x+10), min(dat0.shape[1],y+10)] = 255
+    # dat0[max(0,x-10), max(0,y-10):min(dat0.shape[1],y+10)] = 255
+    # dat0[min(dat0.shape[0],x+10), max(0,y-10):min(dat0.shape[1],y+10)] = 255
+    # plt.imshow(dat0, cmap="gray")
+    # plt.title("series {:s} \n label {:s}".format(srslst[showid], str(ctlab[idx])), fontsize=10)
 plt.show()
 
 
@@ -179,16 +230,18 @@ num_show = np.min([pbb.shape[0], 5])
 # print pbb.shape, pbb
 print('Detection Results according to confidence')
 for idx in range(num_show):
-    fig = plt.figure()
-    z, x, y = int(pbb[idx,1]), int(pbb[idx,2]), int(pbb[idx,3])
-#     print z,x,y
-    dat0 = np.array(ctdat[0, z, :, :])
-    dat0[max(0,x-10):min(dat0.shape[0]-1,x+10), max(0,y-10)] = 255
-    dat0[max(0,x-10):min(dat0.shape[0]-1,x+10), min(dat0.shape[1]-1,y+10)] = 255
-    dat0[max(0,x-10), max(0,y-10):min(dat0.shape[1]-1,y+10)] = 255
-    dat0[min(dat0.shape[0]-1,x+10), max(0,y-10):min(dat0.shape[1]-1,y+10)] = 255
-    plt.imshow(dat0, cmap="gray")
-    plt.title("series {:s} \n predict {:s}".format(srslst[showid], str(pbb[idx])), fontsize=10)
+    title = "series {:s} \n predict {:s}".format(srslst[showid], str(pbb[idx]))
+    plot_bbox(title, ctdat[0], pbb[idx][1:], None, title=title, show=False, fontsize=10 )
+#     fig = plt.figure()
+#     z, x, y = int(pbb[idx,1]), int(pbb[idx,2]), int(pbb[idx,3])
+# #     print z,x,y
+#     dat0 = np.array(ctdat[0, z, :, :])
+#     dat0[max(0,x-10):min(dat0.shape[0]-1,x+10), max(0,y-10)] = 255
+#     dat0[max(0,x-10):min(dat0.shape[0]-1,x+10), min(dat0.shape[1]-1,y+10)] = 255
+#     dat0[max(0,x-10), max(0,y-10):min(dat0.shape[1]-1,y+10)] = 255
+#     dat0[min(dat0.shape[0]-1,x+10), max(0,y-10):min(dat0.shape[1]-1,y+10)] = 255
+#     plt.imshow(dat0, cmap="gray")
+#     plt.title("series {:s} \n predict {:s}".format(srslst[showid], str(pbb[idx])), fontsize=10)
 plt.show()
 
 print("")
