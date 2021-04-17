@@ -12,6 +12,11 @@ Usage instructions:
     python prepare.py prep_luna
     python prepare.py get_info \
         -r="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled"
+    python prepare.py extract \
+        -r="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412/raw" \
+        -s="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412" \
+        -p="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412/checklist.xlsx" \
+        -n=False
 """
 
 import os
@@ -765,6 +770,7 @@ def change_root_info(dst_dir):
                 subPath = subPath.replace(".npz", "_extendbox.npz")
             # subPath = "/".join(subPathList)
                 assert os.path.exists(os.path.join(dst_dir, subPath))
+            subPath = "/".join(subPathList)
         info["imagePath"] = os.path.join(dst_dir, subPath)
     print(infos)
 
@@ -965,6 +971,8 @@ def assign_PET_label(dst_dir):
 
     for i, info in tqdm(enumerate(infos)):
         series = info["series"]
+        if "PET" in series and (info["PET"] == "Y" or info["PET"] == "N"):
+            continue
         if series in PET_series:
             info["PET"] = "Y"
             try:
@@ -1148,8 +1156,9 @@ def gt_labels_raw2normalized(root_dir):
 def get_infos_from_npz(root_dir):
     file = os.path.join(root_dir, "CTinfo.npz")
     # infos = np.load(file, allow_pickle=True)["info"]
-    import shutil
-    shutil.move(file, os.path.join(root_dir, "CTinfo_old.npz"))
+    if os.path.exists(file):
+        import shutil
+        shutil.move(file, os.path.join(root_dir, "CTinfo_old.npz"))
 
     new_infos = []
     all_patients = [i for i in os.listdir(root_dir) if
@@ -1160,7 +1169,7 @@ def get_infos_from_npz(root_dir):
         patientFolder = os.path.join(root_dir, all_patients[i])
         npz_files = [i for i in os.listdir(patientFolder) if i.endswith(".npz")]
         for nf in npz_files:
-            info = np.load(os.path.join(patientFolder, nf))["info"].tolist()
+            info = np.load(os.path.join(patientFolder, nf), allow_pickle=True)["info"].tolist()
             new_infos.append(info)
 
     CTinfoPath = os.path.join(root_dir, "CTinfo.npz")
@@ -1169,7 +1178,45 @@ def get_infos_from_npz(root_dir):
     print("length is: ", len(new_infos))
     [print(i) for i in new_infos]
 
-    change_root_info(root_dir)
+def extract_central_slice(root_dir, save_dir, ck_paht, normalize=True):
+    from PIL import Image
+    from show_results import plot_bbox
+
+    checklist_df = pd.read_excel(ck_path, skiprows=1, dtype={"date": str})
+    imageInfo = np.load(os.path.join(root_dir, "CTinfo.npz"), allow_pickle=True)["info"]
+    imageInfo = remove_duplicate(imageInfo)
+    norm_str = "norm" if normalize else "raw"
+    save_dir = os.path.join(save_dir, "isotropic_slices_{:s}".format(norm_str))
+    os.makedirs(save_dir, exist_ok=True)
+
+    # pos_df = pd.read_csv(os.path.join(os.path.dirname(root_dir), "pos_labels_raw.csv"), dtype={"date": str})
+
+    # rootFolder = "data_king/labeled/"
+    # pos_label_file = "data/pos_labels.csv"
+    # cat_label_file = "data/Lung Nodule Clinical Data_Min Kim - Added Variables 10-2-2020.xlsx"
+    # cube_size = 64
+    # lungData = LungDataset(rootFolder, pos_label_file=pos_label_file, cat_label_file=cat_label_file,
+    #                        cube_size=cube_size, train=None, screen=False, clinical=False)
+    # saveDir = "isotropic_central_slices"
+    # os.makedirs(saveDir, exist_ok=True)
+    for i in tqdm(range(len(imageInfo))):
+        info = imageInfo[i]
+        save_name = "{:s}_{:s}_{:s}".format(info["pstr"], info["patientID"], info["date"])
+        save_name += "_PET" if info["PET"] == "Y" else ""
+
+        imgPath, thickness, spacing = info["imagePath"], info["sliceThickness"], info["pixelSpacing"]
+        pstr = info["pstr"]
+        dstr = info["date"]
+        img = np.load(imgPath)["image"]
+        img = lumTrans(img)
+        existId = (checklist_df["Patient\n Index"] == pstr) & (checklist_df["date"] == dstr)
+        zs = checklist_df[existId]["z"].values
+        for z in zs:
+            z = z - 1
+            c_img = img[z]
+            image_save_dir = os.path.join(save_dir, save_name + "_no{:d}_z{:d}.png".format(i, z))
+            PILimg = Image.fromarray(c_img)
+            PILimg.save(image_save_dir)
 
 # def data_augmentation(root_dir, save_dir):
 #     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -1275,12 +1322,16 @@ if __name__ == '__main__':
 
     # list_float_parser = lambda x: [float(i) for i in x.strip("[]").split(",")] if x else []
     parser = argparse.ArgumentParser(description="prepare script")
-    parser.add_argument('command', choices=["prep_luna", "prep_methodist", "ch_infopath", "ass_pet", "get_info", "raw2norm", "check_label"],
-                        help="options: [prep_luna, prep_methodist, ch_infopath, ass_pet, get_info, raw2norm, check_label]", default="prep_methodist")
+    parser.add_argument('command', choices=["prep_luna", "prep_methodist", "ch_infopath", "ass_pet", "get_info",
+                                            "raw2norm", "check_label", "extract"],
+                        help="options: [prep_luna, prep_methodist, ch_infopath, ass_pet, get_info, raw2norm, "
+                             "check_label, extract]", default="prep_methodist")
     parser.add_argument('-s', '--save_dir', type=str, help='save directory', default=None)
     parser.add_argument('-r', '--root_dir', type=str, help='root directory', default=None)
+    parser.add_argument('-p', '--ck_path', type=str, help='checklist path', default=None)
     parser.add_argument('-m', '--mask', type=eval, help='only apply mask in preprocessing', default=True)
     parser.add_argument('-c', '--crop', type=eval, help='crop masked images in preprocessing', default=True)
+    parser.add_argument('-n', '--normalize', type=eval, help='normalized or raw data', default=True)
     args = parser.parse_args()
 
     # MASK_CROP = False
@@ -1299,6 +1350,8 @@ if __name__ == '__main__':
 
     root_dir = args.root_dir
     save_dir = args.save_dir
+    ck_path = args.ck_path
+    normalize = args.normalize
 
     if args.command == "prep_luna":
         preprocess_luna()
@@ -1318,6 +1371,8 @@ if __name__ == '__main__':
         gt_labels_raw2normalized(root_dir)
     elif args.command == "check_label":
         check_label_existance(root_dir, save_dir)
+    elif args.command == "extract":
+        extract_central_slice(root_dir, save_dir, ck_path, normalize)
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"

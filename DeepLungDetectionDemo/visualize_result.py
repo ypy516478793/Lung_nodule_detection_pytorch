@@ -101,7 +101,7 @@ def plot_bbox(savedir, images, pred, label=None, show=True, title=None, fontsize
 #           "033942251-20130925",
 #           "014776371-20171117"]
 
-srslst = ["098120421-20121001",]
+srslst = ["029337094-20120315",]
 
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"

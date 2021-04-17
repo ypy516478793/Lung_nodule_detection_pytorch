@@ -27,7 +27,8 @@ class IncidentalConfig(object):
     MASK_LUNG = False
     PET_CT = False
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/"
-    ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
+    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
+    ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_unlabeled/"
 
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
@@ -47,10 +48,10 @@ class IncidentalConfig(object):
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
     # POS_LABEL_FILE = "pos_labels.csv"
-    POS_LABEL_FILE = "pos_labels_norm.csv"
+    # POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
-    # POS_LABEL_FILE = None
+    POS_LABEL_FILE = None
     BLACK_LIST = []
 
     ANCHORS = [10.0, 30.0, 60.0]
@@ -321,7 +322,8 @@ class MethodistFull(Dataset):
         self.pet_ct = config.PET_CT
         self.remove_duplicate()
         self.screen()
-        self.__check_labels__()
+        if subset != "inference":
+            self.__check_labels__()
         self.label_mapping = LabelMapping(config, subset)
         self.kfold = KFold(n_splits=config.KFOLD, random_state=config.KFOLD_SEED) if config.KFOLD else None
         self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN,

@@ -245,8 +245,7 @@ def main():
                 pass
             else:
                 raise SystemExit("Manually interrupted! Try another directory")
-        else:
-            os.makedirs(save_dir)
+    os.makedirs(save_dir, exist_ok=True)
     logfile = os.path.join(save_dir, "log")
     # if args.test != 1:
     sys.stdout = Logger(logfile)
