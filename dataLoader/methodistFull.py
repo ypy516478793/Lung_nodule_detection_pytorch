@@ -462,16 +462,7 @@ class MethodistFull(Dataset):
             for filePath in self.filenames:
                 info = self.search_info(filePath)
                 assert info != -1, "No matched info for {:s}!!".format(filePath)
-<<<<<<< HEAD
-
-                if filePath == '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug/Lung_patient280-100946920/100946920-20170104.npz':
-                    print("!!!!!!!!!")
-
-=======
->>>>>>> 30ba749414ce144dde8ba0eccce368690c1cd475
                 l = self.load_pos(info)
-
-
 
                 # print("")
                 if self.config.CROP_LUNG:
@@ -598,8 +589,6 @@ class MethodistFull(Dataset):
                 isScale = self.augtype["scale"] and (self.subset == "train")
                 # isScale = False
                 sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
-                if sample.shape != (1, 96, 96, 96):
-                    print("Error!!!!!!!")
                 if self.subset == "train" and not isRandom:
                     sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
                                                             ifflip=self.augtype["flip"],
