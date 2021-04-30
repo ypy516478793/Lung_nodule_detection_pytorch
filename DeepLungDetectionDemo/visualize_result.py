@@ -4,7 +4,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-showid = 0 # from 0 to 4
+showid = 1 # from 0 to 4
 assert showid in range(5)
 
 def lumTrans(img):
@@ -101,12 +101,20 @@ def plot_bbox(savedir, images, pred, label=None, show=True, title=None, fontsize
 #           "033942251-20130925",
 #           "014776371-20171117"]
 
-srslst = ["029337094-20120315",]
+# srslst = ["029337094-20120315",]
+# srslst = ["000192476-20160614",]
+srslst = ["005203419-20160716",
+          "102883931-20180417",
+          "040779696-20160823",
+          "007494206-20171016",
+          "000192476-20160614",
+          "001734722-20130821"]
 
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
-data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_with_crop/"
+# data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_with_crop/"
+data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug/"
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
@@ -121,7 +129,9 @@ data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_ben_nonPET_lr001_rs42_limit1.0_5fold_0/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_0/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_augAll_5fold_0/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_4/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_4/bbox/"
+result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210429-200058-train/bbox/"
+show = True
 
 pos_label_file = "pos_labels_norm.csv"
 info_file = "CTinfo.npz"
@@ -171,7 +181,7 @@ print("label shape is: ", ctlab.shape)
 for idx in range(ctlab.shape[0]):
     if abs(ctlab[idx,0])+abs(ctlab[idx,1])+abs(ctlab[idx,2])+abs(ctlab[idx,3])==0: continue
     title = "series {:s} \n label {:s}".format(srslst[showid], str(ctlab[idx]))
-    plot_bbox(title, ctdat[0], None, ctlab[idx], show=False, title=title, fontsize=10 )
+    plot_bbox(title, ctdat[0], None, ctlab[idx], show=show, title=title, fontsize=10 )
     # fig = plt.figure()
     # z, x, y = int(ctlab[idx,0]), int(ctlab[idx,1]), int(ctlab[idx,2])
     # dat0 = np.array(ctdat[0, z, :, :])
@@ -230,8 +240,9 @@ num_show = np.min([pbb.shape[0], 5])
 # print pbb.shape, pbb
 print('Detection Results according to confidence')
 for idx in range(num_show):
+    pbb[idx, 0] = 1 / (1 + np.exp(-pbb[idx, 0]))
     title = "series {:s} \n predict {:s}".format(srslst[showid], str(pbb[idx]))
-    plot_bbox(title, ctdat[0], pbb[idx][1:], None, title=title, show=False, fontsize=10 )
+    plot_bbox(title, ctdat[0], pbb[idx][1:], None, title=title, show=show, fontsize=10 )
 #     fig = plt.figure()
 #     z, x, y = int(pbb[idx,1]), int(pbb[idx,2]), int(pbb[idx,3])
 # #     print z,x,y

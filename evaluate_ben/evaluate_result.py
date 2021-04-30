@@ -9,10 +9,10 @@ import argparse
 import csv
 
 import os
-import matplotlib as mpl
-if os.environ.get('DISPLAY','') == '':
-    print('no display found. Using non-interactive Agg backend')
-    mpl.use('Agg')
+# import matplotlib as mpl
+# if os.environ.get('DISPLAY','') == '':
+#     print('no display found. Using non-interactive Agg backend')
+#     mpl.use('Agg')
 
 seriesuid_label = 'seriesuid'
 coordX_label = 'coordX'
@@ -98,7 +98,8 @@ def convertcsv(bboxfname, result_dir, detp):
 
 def getcsv(detp, nmsthresh, ostr):
     firstline = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'probability']
-    bbox_dir = result_dir + "bbox/"
+    # bbox_dir = result_dir + "bbox/"
+    bbox_dir = os.path.join(result_dir, "bbox/")
     for nmsth in nmsthresh:
         for detpthresh in detp:
             print('detp', detpthresh, "nmsth", nmsth)
@@ -592,7 +593,7 @@ def collect(seriesuids_path):
         if pos_label_file != "pos_labels_norm.csv":
             temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
         # pos = pos[:, [2, 1, 0, 3]]
-        if "crop" in seriesuids_path:
+        if CROP:
             extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
             ll = np.copy(temp0[:, [2, 1, 0, 3]]).T
             ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
@@ -628,6 +629,7 @@ if __name__ == '__main__':
     parser.add_argument('--detp', type=list_float_parser, help='detect probability threshold', default="[0]")
     parser.add_argument('--nmsthresh', type=list_float_parser, help='nms threshold', default="[0.1]")
     parser.add_argument('--iouthresh', type=float, help='iou threshold', default=None)
+    parser.add_argument("--crop", default=True, type=eval, help="crop lung")
     parser.add_argument('--result_dir', type=str, help='result directory', 
                         default="../detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/")
     parser.add_argument('--data_dir', type=str, help='data file directory', 
@@ -642,6 +644,7 @@ if __name__ == '__main__':
     iouthresh = args.iouthresh
     result_dir = args.result_dir
     extra_str = args.extra_str
+    CROP = args.crop
     # iouthresh = None
     # iouthresh = None
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/"   ## fine-tuned on methodist data

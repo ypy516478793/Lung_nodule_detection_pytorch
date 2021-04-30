@@ -17,6 +17,18 @@ Usage instructions:
         -s="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412" \
         -p="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412/checklist.xlsx" \
         -n=False
+    python prepare.py convert \
+        -r="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412/raw" \
+        -s="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/additional_0412" \
+        -a="labels_my-project-name_2021-04-20-11-13-39.csv" \
+        -n=False
+    python prepare.py update_details \
+        -r="/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/labeled" \
+        -s="/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental"
+    python prepare.py update_checklist \
+        -r="/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/labeled" \
+        -s="/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental" \
+        -p="/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/checklist_Ben.xlsx"
 """
 
 import os
@@ -27,6 +39,7 @@ import sys
 # import config_training
 # config = config_training.config
 from scipy.io import loadmat
+from shutil import copyfile
 import numpy as np
 import h5py
 import pandas
@@ -43,11 +56,12 @@ import pandas
 from multiprocessing import Pool
 from functools import partial
 from tqdm import tqdm
+from natsort import natsorted
 import pandas as pd
 import argparse
-import imgaug.augmenters as iaa
-import imgaug as ia
-from show_results import plot_bbox
+# import imgaug.augmenters as iaa
+# import imgaug as ia
+# from show_results import plot_bbox
 
 import warnings
 
@@ -760,17 +774,25 @@ def preprocess_luna():
 def change_root_info(dst_dir):
     file = os.path.join(dst_dir, "CTinfo.npz")
     infos = np.load(file, allow_pickle=True)["info"]
+    s = infos[0]["imagePath"].find("Lung_patient")
+    if s == -1:
+        get_infos_from_npz(dst_dir)
+        file = os.path.join(dst_dir, "CTinfo.npz")
+        infos = np.load(file, allow_pickle=True)["info"]
     for info in infos:
         s = info["imagePath"].find("Lung_patient")
         subPath = info["imagePath"][s:].replace("\\", "/")
-        if not os.path.exists(os.path.join(dst_dir, subPath)):
-            subPathList =subPath.split("/")
+        subPathClean = subPath.replace(".npz", "_clean.npz")
+        if not os.path.exists(os.path.join(dst_dir, subPath)) and \
+            not os.path.exists(os.path.join(dst_dir, subPathClean)):
+            subPathList = subPath.split("/")
             subPathList[0] = subPathList[0].rsplit("_", 1)[0]
-            if not os.path.exists(os.path.exists(os.path.join(dst_dir, "/".join(subPathList)))):
-                subPath = subPath.replace(".npz", "_extendbox.npz")
-            # subPath = "/".join(subPathList)
-                assert os.path.exists(os.path.join(dst_dir, subPath))
+            # if not os.path.exists(os.path.exists(os.path.join(dst_dir, "/".join(subPathList)))):
+            #     subPath = subPath.replace(".npz", "_extendbox.npz")
+            # # subPath = "/".join(subPathList)
+            #     assert os.path.exists(os.path.join(dst_dir, subPath))
             subPath = "/".join(subPathList)
+            assert os.path.exists(os.path.join(dst_dir, subPath))
         info["imagePath"] = os.path.join(dst_dir, subPath)
     print(infos)
 
@@ -793,7 +815,8 @@ def make_lungmask(img, display=False):
     img = img / std
     # Find the average pixel value near the lungs
     # to renormalize washed out images
-    middle = img[int(col_size / 5):int(col_size / 5 * 4), int(row_size / 5):int(row_size / 5 * 4)]
+    # middle = img[int(col_size / 5):int(col_size / 5 * 4), int(row_size / 5):int(row_size / 5 * 4)]
+    middle = img[0:col_size, 0:row_size]
     mean = np.mean(middle)
     max = np.max(img)
     min = np.min(img)
@@ -812,7 +835,7 @@ def make_lungmask(img, display=False):
     # First erode away the finer elements, then dilate to include some of the pixels surrounding the lung.
     # We don't want to accidentally clip the lung.
 
-    eroded = morphology.erosion(thresh_img, np.ones([3, 3]))
+    eroded = morphology.erosion(thresh_img, np.ones([5, 5]))
     dilation = morphology.dilation(eroded, np.ones([8, 8]))
 
     labels = measure.label(dilation)  # Different labels are displayed in different colors
@@ -833,7 +856,7 @@ def make_lungmask(img, display=False):
     #
     for N in good_labels:
         mask = mask + np.where(labels == N, 1, 0)
-    mask = morphology.dilation(mask, np.ones([10, 10]))  # one last dilation
+    mask = morphology.dilation(mask, np.ones([12, 12]))  # one last dilation
 
     if (display):
         fig, ax = plt.subplots(3, 2, figsize=[12, 12])
@@ -957,6 +980,8 @@ def prepare_masked_cropped_images(root_dir, save_dir):
     new_info_path = os.path.join(save_dir, "CTinfo.npz")
     np.savez_compressed(new_info_path, info=infos)
     print("Save all scan infos to {:s}".format(new_info_path))
+    pos_label_file = "pos_labels_norm.csv"
+    copyfile(os.path.join(root_dir, pos_label_file), os.path.join(save_dir, pos_label_file))
 
 def assign_PET_label(dst_dir):
 
@@ -971,7 +996,7 @@ def assign_PET_label(dst_dir):
 
     for i, info in tqdm(enumerate(infos)):
         series = info["series"]
-        if "PET" in series and (info["PET"] == "Y" or info["PET"] == "N"):
+        if "PET" in info and (info["PET"] == "Y" or info["PET"] == "N"):
             continue
         if series in PET_series:
             info["PET"] = "Y"
@@ -1020,6 +1045,29 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1], imgshape=None
     label[3] = label[3] * resize_factor[1]
 
     return label
+
+def resample_pos_back(label, thickness, spacing, new_spacing=[1, 1, 1], imgshape=None):
+    """
+    :param label: (x, y, z, d) in normalized resolution
+    :param thickness: float z
+    :param spacing: original resolution, list [y, x]
+    :param new_spacing: new resolution, list [z, y, x]
+    :param imgshape: tuple, (#z, #y, #x)
+    :return:
+    """
+    label = label.astype(np.float)
+    spacing = map(float, ([thickness] + list(spacing)))
+    spacing = np.array(list(spacing))
+    resize_factor = spacing / new_spacing
+    # new_shape = np.round(imgshape * resize_factor)
+    orishape = np.round(imgshape / resize_factor)
+    resize_factor = (np.array(imgshape) - 1) / (orishape - 1)
+    resize_factor = resize_factor[::-1]
+    label[:3] = np.round(label[:3] / resize_factor).astype(np.int)
+    label[3] = label[3] / resize_factor[1]
+
+    return label
+
 
 def remove_duplicate(imageInfo, exclude=[]):
     for i, info in enumerate(imageInfo):
@@ -1104,13 +1152,55 @@ def check_label_existance(root_dir, save_dir):
                 PILimg = Image.fromarray(c_img)
                 PILimg.save(save_path)
 
-    from natsort import natsorted
     no_pos = natsorted(np.array(no_pos))
     print(np.array(no_pos))
 
-def gt_labels_raw2normalized(root_dir):
+def gt_labels_normalized2raw(root_dir, save_dir):
+    """
+    :param root_dir: where CTinfo.npz locates
+    :param save_dir: where pos_labels_raw.csv locates
+    :return: None; save to pos_labels_norm.csv
+    """
+    pos_df = pd.read_csv(os.path.join(save_dir, "pos_labels_norm.csv"), dtype={"date": str})
+    change_root_info(root_dir)
+    imageInfo = np.load(os.path.join(root_dir, "CTinfo.npz"), allow_pickle=True)["info"]
+    imageInfo = remove_duplicate(imageInfo)
+    drop_rows = []
+    for i in tqdm(range(len(pos_df))):
+        pos_info = pos_df.iloc[i]
+        pstr = pos_info["patient"]
+        dstr = pos_info["date"]
+        ids = [id for id in range(len(imageInfo)) if imageInfo[id]["pstr"] == pstr and imageInfo[id]["date"] == dstr]
+        assert len(ids) <= 1, "{:} \n {:}".format(ids, pos_info)
+        if len(ids) == 0:
+            print(pos_info["patient"])
+            drop_rows.append(pos_df.index[i])
+            continue
+        imageId = ids[0]
+        imagePath = imageInfo[imageId]["imagePath"]
+        thickness = imageInfo[imageId]["sliceThickness"]
+        spacing = imageInfo[imageId]["pixelSpacing"]
+        # resolution = np.array(list(map(float, ([thickness] + list(spacing)))))
+        # new_resolution = np.array([1, 1, 1])
+        norm_pos = pos_info[["x", "y", "z", "d"]].values.astype(np.float)
+        image = np.load(imagePath, allow_pickle=True)["image"]
+        raw_pos = resample_pos_back(norm_pos, thickness, spacing, new_spacing=[1, 1, 1], imgshape=image.shape)
+        raw_pos[2] = raw_pos[2] + 1
+        pos_df.loc[pos_df.index[i], ["x", "y", "z", "d"]] = raw_pos
+    pos_df = pos_df.drop(index=drop_rows)
+    pos_df.to_csv(os.path.join(save_dir, "pos_labels_raw.csv"), index=False)
+    print("save to {:s}".format(os.path.join(save_dir, "pos_labels_raw.csv")))
 
-    pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_raw.csv"), dtype={"date": str})
+
+
+def gt_labels_raw2normalized(root_dir, save_dir):
+    """
+    :param root_dir: where CTinfo.npz locates
+    :param save_dir: where pos_labels_raw.csv locates
+    :return: None; save to pos_labels_norm.csv
+    """
+    pos_df = pd.read_csv(os.path.join(save_dir, "pos_labels_raw.csv"), dtype={"date": str})
+    change_root_info(root_dir)
     imageInfo = np.load(os.path.join(root_dir, "CTinfo.npz"), allow_pickle=True)["info"]
     imageInfo = remove_duplicate(imageInfo)
 
@@ -1147,8 +1237,8 @@ def gt_labels_raw2normalized(root_dir):
         norm_pos = resample_pos(raw_pos, thickness, spacing, new_spacing=[1, 1, 1], imgshape=image.shape)
         pos_df.loc[pos_df.index[i], ["x", "y", "z", "d"]] = norm_pos
     pos_df = pos_df.drop(index=drop_rows)
-    pos_df.to_csv(os.path.join(root_dir, "pos_labels_norm.csv"), index=False)
-    print("save to {:s}".format(os.path.join(root_dir, "pos_labels_norm.csv")))
+    pos_df.to_csv(os.path.join(save_dir, "pos_labels_norm.csv"), index=False)
+    print("save to {:s}".format(os.path.join(save_dir, "pos_labels_norm.csv")))
 
 
 
@@ -1163,11 +1253,12 @@ def get_infos_from_npz(root_dir):
     new_infos = []
     all_patients = [i for i in os.listdir(root_dir) if
                     os.path.isdir(os.path.join(root_dir, i)) and i[:4] == "Lung"]
-    from natsort import natsorted
     all_patients = natsorted(all_patients)
     for i in range(len(all_patients)):
         patientFolder = os.path.join(root_dir, all_patients[i])
-        npz_files = [i for i in os.listdir(patientFolder) if i.endswith(".npz")]
+        npz_files = [i for i in os.listdir(patientFolder) if i.endswith("_clean.npz")]
+        if len(npz_files) == 0:
+            npz_files = [i for i in os.listdir(patientFolder) if i.endswith("npz")]
         for nf in npz_files:
             info = np.load(os.path.join(patientFolder, nf), allow_pickle=True)["info"].tolist()
             new_infos.append(info)
@@ -1178,15 +1269,16 @@ def get_infos_from_npz(root_dir):
     print("length is: ", len(new_infos))
     [print(i) for i in new_infos]
 
-def extract_central_slice(root_dir, save_dir, ck_paht, normalize=True):
+def extract_central_slice(root_dir, save_dir, ck_path, normalize=True):
     from PIL import Image
     from show_results import plot_bbox
 
     checklist_df = pd.read_excel(ck_path, skiprows=1, dtype={"date": str})
+    change_root_info(root_dir) # change image path in the root info file
     imageInfo = np.load(os.path.join(root_dir, "CTinfo.npz"), allow_pickle=True)["info"]
     imageInfo = remove_duplicate(imageInfo)
     norm_str = "norm" if normalize else "raw"
-    save_dir = os.path.join(save_dir, "isotropic_slices_{:s}".format(norm_str))
+    save_dir = os.path.join(save_dir, "central_slices_{:s}".format(norm_str))
     os.makedirs(save_dir, exist_ok=True)
 
     # pos_df = pd.read_csv(os.path.join(os.path.dirname(root_dir), "pos_labels_raw.csv"), dtype={"date": str})
@@ -1217,6 +1309,204 @@ def extract_central_slice(root_dir, save_dir, ck_paht, normalize=True):
             image_save_dir = os.path.join(save_dir, save_name + "_no{:d}_z{:d}.png".format(i, z))
             PILimg = Image.fromarray(c_img)
             PILimg.save(image_save_dir)
+
+def create_gt_csv(root_dir, save_dir, annot_file, normalize=True):
+    '''
+    create the ground truth csv file based on the annotation information.
+    :param root_dir: root folder of the data
+    :param save_dir: directory to save the pos_label.csv
+    :param annot_file: makesense exported annotation csv file
+    :return: None
+    '''
+    annotations = pd.read_csv(os.path.join(save_dir, annot_file),
+                              names=["label", "x", "y", "w", "h", "imgName", "W", "H"])
+    norm_str = "norm" if normalize else "raw"
+    labels = []
+    for i in range(len(annotations)):
+        patient_obj = annotations.iloc[i]
+        annot_list = patient_obj["imgName"].split("_")
+        if len(annot_list) == 5:
+            pstr, mrn, dstr, nodule_idx, z = annot_list
+        else:
+            pstr, mrn, dstr, pet, nodule_idx, z = annot_list
+        # imgName_list = annot_list[2].split(".")
+        # Series = imgName_list[1]
+        # z, Z = [int(j) for j in imgName_list[-2][4:].split("_")]
+        Series = "Unknown"
+        z = z.strip("z.png")
+        x = patient_obj["x"] + patient_obj["w"] / 2
+        y = patient_obj["y"] + patient_obj["h"] / 2
+        # d = np.sqrt(np.power(patient_obj["w"], 2) + np.power(patient_obj["h"], 2))
+        d = np.max([patient_obj["w"], patient_obj["h"]])
+        labels.append((pstr, dstr, Series, x, y, z, d))
+    columns = ["patient", "date", "series", "x", "y", "z", "d"]
+    label_df = pd.DataFrame(labels, columns=columns)
+    label_df.to_csv(os.path.join(save_dir, "pos_labels_{:s}.csv".format(norm_str)), index=False)
+
+    if not normalize:
+        gt_labels_raw2normalized(root_dir, save_dir)
+
+def update_dataset_details(root_dir, save_dir):
+    import time
+    # data_folder = os.path.join(root_dir, "Data")
+    detail_path = os.path.join(save_dir, "details.xlsx")
+    detail_df = pd.read_excel(detail_path, dtype={"MRN": str})
+    detail_df['MRN'] = detail_df['MRN'].apply(lambda x: '{0:0>9}'.format(x))
+    # gt_df = pd.read_csv(os.path.join(root_dir, "gt_labels.csv"))
+    pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_norm.csv"), dtype={"MRN": str, "date": str})
+
+    info_path = os.path.join(root_dir, "CTinfo.npz")
+    infos = np.load(info_path, allow_pickle=True)["info"]
+
+    # new_infos = []
+    # duplicate = []
+    # for info in infos:
+    #     if info not in new_infos:
+    #         new_infos.append(info)
+    #     else:
+    #         duplicate.append(info)
+    # np.savez_compressed(info_path, info=new_infos)
+
+    today = time.strftime('%Y%m%d', time.localtime())
+
+    for info in tqdm(infos):
+        pstr = info["pstr"]
+        dstr = info["date"]
+        patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
+        assert patient_colname in pos_df
+        existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
+        pos = pos_df[existId][["x", "y", "z", "d"]].values
+        detailExistId = (detail_df["Patient Idx"] == pstr)
+        if len(pos) > 0:
+            annotated = detail_df.loc[detailExistId, "Annotated nodules\n(Date: number)"]
+            if annotated.isnull().values.any():
+                annotated = "{{{:s}:{:d}}}".format(dstr, len(pos))
+            else:
+                annotated = annotated + ", {{{:s}:{:d}}}".format(dstr, len(pos))
+            detail_df.loc[detailExistId, "Annotated nodules\n(Date: number)"] = annotated
+            inData = detail_df.loc[detailExistId, "Has annotation"]
+            if inData.isnull().values.any():
+                inData = 1
+                detail_df.loc[detailExistId, "Has annotation"] = inData
+        else:
+            notAnnotated = detail_df.loc[detailExistId, "Not annotated nodules\n(Date)"]
+            if notAnnotated.isnull().values.any():
+                notAnnotated = "{:s}".format(dstr)
+            else:
+                notAnnotated = notAnnotated + ", {:s}".format(dstr)
+            detail_df.loc[detailExistId, "Not annotated nodules\n(Date)"] = notAnnotated
+
+        if detail_df.loc[detailExistId, "Data downloaded"].isnull().values.any():
+            detail_df.loc[detailExistId, "Data downloaded"] = 1
+        detail_df.loc[detailExistId, "Included date"] = today
+
+    detail_df.to_excel(os.path.join(save_dir, "details_new.xlsx"), index=False)
+    print("Saved to {:s}".format(os.path.join(save_dir, "details_new.xlsx")))
+
+def update_dataset_checklist(root_dir, save_dir, ck_path):
+    import time
+    import itertools
+    # data_folder = os.path.join(root_dir, "Data")
+    # detail_path = os.path.join(save_dir, "details.xlsx")
+
+    checklist_df = pd.read_excel(ck_path, skiprows=1, dtype={"date": str})
+    # change_root_info(root_dir) # change image path in the root info file
+
+    assign_PET_label(root_dir)
+    # imageInfo = remove_duplicate(imageInfo)
+    # norm_str = "norm" if normalize else "raw"
+    # save_dir = os.path.join(save_dir, "central_slices_{:s}".format(norm_str))
+    # os.makedirs(save_dir, exist_ok=True)
+
+
+    # gt_df = pd.read_csv(os.path.join(root_dir, "gt_labels.csv"))
+    try:
+        pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_raw.csv"), dtype={"MRN": str, "date": str})
+    except:
+        gt_labels_normalized2raw(root_dir, root_dir)
+        pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_raw.csv"), dtype={"MRN": str, "date": str})
+
+    info_path = os.path.join(root_dir, "CTinfo.npz")
+    infos = np.load(info_path, allow_pickle=True)["info"]
+
+
+    today = time.strftime('%Y%m%d', time.localtime())
+
+    for info in tqdm(infos):
+        pstr = info["pstr"]
+        dstr = info["date"]
+        patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
+        assert patient_colname in pos_df
+        existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
+        pos = pos_df[existId][["x", "y", "z", "d"]].values
+        checklistExistId = (checklist_df["Patient\n Index"] == pstr) & (checklist_df["date"] == dstr)
+
+        if checklist_df[checklistExistId]['PET'].isnull().values.any():
+            checklist_df.loc[checklistExistId, 'PET'] = info["PET"]
+        if len(pos) > 0:
+            annotated = checklist_df.loc[checklistExistId, ["x", "y", "z", "d"]]
+            if annotated.isnull().values.any():
+                for z in annotated["z"].unique():
+                    found = pos[pos[:, 2] == z]
+                    if len(found) > 0:
+                        checklist_df.loc[checklistExistId & (annotated["z"] == z), ["x", "y", "z", "d"]] = pos[pos[:, 2] == z]
+                        checklist_df.loc[checklistExistId & (annotated["z"] == z), "Included on"] = today
+
+    pos_df = pd.read_csv(os.path.join(root_dir, "pos_labels_norm.csv"), dtype={"MRN": str, "date": str})
+    for info in tqdm(infos):
+        pstr = info["pstr"]
+        paExistId = checklist_df["Patient\n Index"] == pstr
+        all_dates = checklist_df.loc[paExistId, "date"]
+        unique_dates = all_dates.value_counts().sort_values(ascending=False).index
+        nodule_dict = {} # {0: (z0, d0, Y), 1: (z1, d1, N)}
+        for dstr in unique_dates:
+
+            patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
+            assert patient_colname in pos_df
+            existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
+            zs = pos_df[existId]['z'].values
+            ds = pos_df[existId]['d'].values
+
+            checklistExistId = (checklist_df["z"].notnull()) & (checklist_df["d"].notnull()) & \
+                               paExistId & (checklist_df["date"] == dstr)
+            checklist_lines = checklist_df[checklistExistId]
+            if len(checklist_lines) != len(zs):
+                print("{:d} samples in checklist, {:d} samples in pos_label, for pstr: {:s}, dstr: {:s}".format(
+                    len(checklist_lines), len(zs), pstr, dstr))
+                continue
+            # zs = checklist_lines['z'].values
+            # ds = checklist_lines['d'].values
+            # first date, empty nodule_dict
+            if len(checklist_lines) > 0:
+                if len(nodule_dict) == 0:
+                    peusdo_main_nodule = np.repeat("N", len(checklist_lines))
+                    peusdo_main_nodule[np.argmax(ds)] = "Y"
+                    for i in np.arange(len(checklist_lines)):
+                        nodule_dict[i] = (zs[i], ds[i], peusdo_main_nodule[i])
+                    if checklist_lines['nodule\nIndex'].isnull().values.any():
+                        checklist_df.loc[checklistExistId, 'nodule\nIndex'] = np.arange(len(checklist_lines))
+                    main_nodule = checklist_lines['main\n nodule']
+                    if main_nodule.isnull().values.any() or (main_nodule == "U").values.all():
+                        checklist_df.loc[checklistExistId, 'main\n nodule'] = peusdo_main_nodule
+                else:
+                    if checklist_lines['nodule\nIndex'].isnull().values.any() or \
+                            main_nodule.isnull().values.any() or (main_nodule == "U").values.all():
+                        candidates = np.stack([zs, ds], axis=0)
+                        match_error = np.zeros([len(nodule_dict), len(zs)])
+                        for i in nodule_dict:
+                            match_error[i] = np.sum(np.abs(np.array(nodule_dict[i][:2])[:, np.newaxis] - candidates), axis=0)
+                        options = np.array(list(itertools.permutations(range(len(nodule_dict)), len(zs))))
+                        ids = np.repeat(np.arange(len(zs))[np.newaxis, :], len(options), axis=0)
+                        errors = np.sum(match_error[options, ids], axis=1)
+                        nodule_index = options[np.argmin(errors)]
+                    if checklist_lines['nodule\nIndex'].isnull().values.any():
+                        checklist_df.loc[checklistExistId, 'nodule\nIndex'] = nodule_index
+                    if main_nodule.isnull().values.any() or (main_nodule == "U").values.all():
+                        peusdo_main_nodule = np.array([nodule_dict[i][-1] for i in nodule_index])
+                        checklist_df.loc[checklistExistId, 'main\n nodule'] = peusdo_main_nodule
+
+    checklist_df.to_excel(os.path.join(save_dir, ck_path.replace(".xlsx", "_new.xlsx")), index=False)
+    print("Saved to {:s}".format(os.path.join(save_dir, ck_path.replace(".xlsx", "_new.xlsx"))))
 
 # def data_augmentation(root_dir, save_dir):
 #     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
@@ -1323,12 +1613,13 @@ if __name__ == '__main__':
     # list_float_parser = lambda x: [float(i) for i in x.strip("[]").split(",")] if x else []
     parser = argparse.ArgumentParser(description="prepare script")
     parser.add_argument('command', choices=["prep_luna", "prep_methodist", "ch_infopath", "ass_pet", "get_info",
-                                            "raw2norm", "check_label", "extract"],
+                                            "raw2norm", "check_label", "extract", "convert", "update_details", "update_checklist"],
                         help="options: [prep_luna, prep_methodist, ch_infopath, ass_pet, get_info, raw2norm, "
-                             "check_label, extract]", default="prep_methodist")
+                             "check_label, extract, convert, update]", default="prep_methodist")
     parser.add_argument('-s', '--save_dir', type=str, help='save directory', default=None)
     parser.add_argument('-r', '--root_dir', type=str, help='root directory', default=None)
     parser.add_argument('-p', '--ck_path', type=str, help='checklist path', default=None)
+    parser.add_argument('-a', '--annot_file', type=str, help='annotation file name', default="")
     parser.add_argument('-m', '--mask', type=eval, help='only apply mask in preprocessing', default=True)
     parser.add_argument('-c', '--crop', type=eval, help='crop masked images in preprocessing', default=True)
     parser.add_argument('-n', '--normalize', type=eval, help='normalized or raw data', default=True)
@@ -1352,6 +1643,7 @@ if __name__ == '__main__':
     save_dir = args.save_dir
     ck_path = args.ck_path
     normalize = args.normalize
+    annot_file = args.annot_file
 
     if args.command == "prep_luna":
         preprocess_luna()
@@ -1368,11 +1660,17 @@ if __name__ == '__main__':
     elif args.command == "get_info":
         get_infos_from_npz(root_dir)
     elif args.command == "raw2norm":
-        gt_labels_raw2normalized(root_dir)
+        gt_labels_raw2normalized(root_dir, save_dir)
     elif args.command == "check_label":
         check_label_existance(root_dir, save_dir)
     elif args.command == "extract":
         extract_central_slice(root_dir, save_dir, ck_path, normalize)
+    elif args.command == "convert":
+        create_gt_csv(root_dir, save_dir, annot_file, normalize)
+    elif args.command == "update_details":
+        update_dataset_details(root_dir, save_dir)
+    elif args.command == "update_checklist":
+        update_dataset_checklist(root_dir, save_dir, ck_path)
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"

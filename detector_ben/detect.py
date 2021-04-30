@@ -63,7 +63,7 @@ parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="mod
 # parser.add_argument("--config", "-c", default="config_methodistFull", type=str)
 parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
                     help="number of data loading workers (default: 32)")
-parser.add_argument("--epochs", default=100, type=int, metavar="N",
+parser.add_argument("--epochs", "-e", default=100, type=int, metavar="N",
                     help="number of total epochs to run")
 parser.add_argument("--start-epoch", default=0, type=int, metavar="N",
                     help="manual epoch number (useful on restarts)")
@@ -79,18 +79,18 @@ parser.add_argument("--weight-decay", "--wd", default=1e-4, type=float,
                     metavar="W", help="weight decay (default: 1e-4)")
 parser.add_argument("--save-freq", default="1", type=int, metavar="S",
                     help="save frequency")
-parser.add_argument("--resume", default="../detector/resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
+parser.add_argument("--resume", "-re", default="../detector/resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
 # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20210106-112050_incidental/001.ckpt",
 #                     type=str, metavar="PATH",
                     help="path to latest checkpoint (default: none)")
-parser.add_argument("--save-dir", default='', type=str, metavar="SAVE",
+parser.add_argument("--save-dir", "-s", default='', type=str, metavar="SAVE",
                     help="directory to save checkpoint (default: none)")
-parser.add_argument("--test", default=True, type=eval, metavar="TEST",
+parser.add_argument("--test", "-t", default=True, type=eval, metavar="TEST",
                     help="1 do test evaluation, 0 not")
-parser.add_argument("--inference", default=False, type=eval,
+parser.add_argument("--inference", "-i", default=False, type=eval,
                     help="True if run inference (no label) else False")
 parser.add_argument("--testthresh", default=-3, type=float,
                     help="threshod for get pbb")
@@ -105,8 +105,8 @@ parser.add_argument("--limit_train", default=None, type=float, metavar="N",
                     help="ratio of training size")
 
 # "flip": False, "swap": False, "scale": False, "rotate": False
-parser.add_argument("--mask", default=False, type=eval, help="mask lung")
-parser.add_argument("--crop", default=False, type=eval, help="crop lung")
+parser.add_argument("--mask", default=True, type=eval, help="mask lung")
+parser.add_argument("--crop", default=True, type=eval, help="crop lung")
 
 parser.add_argument("--flip", default=False, type=eval, help="flip")
 parser.add_argument("--swap", default=False, type=eval, help="swap")
@@ -219,7 +219,7 @@ def main():
 
         config.KFOLD = args.kfold
         config.SPLIT_ID = args.split_id
-        config.set_data_dir()
+        # config.set_data_dir()
         Dataset = MethodistFull
 
     ## Specify the save directory
@@ -234,17 +234,17 @@ def main():
     else:
         save_dir = os.path.join("results", save_dir)
 
-    if not args.test:
-        if os.path.exists(save_dir):
-            choice = input("This directory {} already exist, [o] to overwrite it or [c] to continue training, "
-                           "any other to stop.\n".format(save_dir))
-            if choice == 'o':
-                shutil.rmtree(save_dir)
-                os.makedirs(save_dir)
-            elif choice == 'c':
-                pass
-            else:
-                raise SystemExit("Manually interrupted! Try another directory")
+    # if not args.test:
+    #     if os.path.exists(save_dir):
+    #         choice = input("This directory {} already exist, [o] to overwrite it or [c] to continue training, "
+    #                        "any other to stop.\n".format(save_dir))
+    #         if choice == 'o':
+    #             shutil.rmtree(save_dir)
+    #             os.makedirs(save_dir)
+    #         elif choice == 'c':
+    #             pass
+    #         else:
+    #             raise SystemExit("Manually interrupted! Try another directory")
     os.makedirs(save_dir, exist_ok=True)
     logfile = os.path.join(save_dir, "log")
     # if args.test != 1:
