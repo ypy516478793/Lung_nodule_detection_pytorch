@@ -462,10 +462,13 @@ class MethodistFull(Dataset):
             for filePath in self.filenames:
                 info = self.search_info(filePath)
                 assert info != -1, "No matched info for {:s}!!".format(filePath)
+<<<<<<< HEAD
 
                 if filePath == '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug/Lung_patient280-100946920/100946920-20170104.npz':
                     print("!!!!!!!!!")
 
+=======
+>>>>>>> 30ba749414ce144dde8ba0eccce368690c1cd475
                 l = self.load_pos(info)
 
 
