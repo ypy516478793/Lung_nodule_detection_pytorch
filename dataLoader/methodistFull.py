@@ -28,30 +28,20 @@ class IncidentalConfig(object):
     PET_CT = False
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/"
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
-    ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_unlabeled/"
-
+    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_unlabeled/"
+    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben"
+    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-
-    # if CROP_LUNG:
-    #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
-    #     assert MASK_LUNG
-    # elif MASK_LUNG:
-    #     # DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
-    #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
-    # else:
-    #     # DATA_DIR = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
-    #     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
-
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
-    # POS_LABEL_FILE = "pos_labels.csv"
+    POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
-    POS_LABEL_FILE = None
+    # POS_LABEL_FILE = None
     BLACK_LIST = []
 
     ANCHORS = [10.0, 30.0, 60.0]
@@ -91,14 +81,14 @@ class IncidentalConfig(object):
     LIMIT_TRAIN = None
     SPLIT_ID = None
 
-    def set_data_dir(self):
-        if self.MASK_LUNG:
-            if self.CROP_LUNG:
-                self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_with_crop")
-            else:
-                self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_first")
-        else:
-            self.DATA_DIR = os.path.join(self.ROOT_DIR, "labeled")
+    # def set_data_dir(self):
+    #     if self.MASK_LUNG:
+    #         if self.CROP_LUNG:
+    #             self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_with_crop")
+    #         else:
+    #             self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_first")
+    #     else:
+    #         self.DATA_DIR = os.path.join(self.ROOT_DIR, "labeled")
 
     def display(self):
         """Display Configuration values."""
@@ -398,10 +388,10 @@ class MethodistFull(Dataset):
         for k, v in cnt.items():
             if k in exclude:
                 indices = [i for i, x in enumerate(identifier_set) if x == k]
-                remove_ids.append(*indices)
+                remove_ids = remove_ids + indices
             elif v > 1:
                 indices = [i for i, x in enumerate(identifier_set) if x == k]
-                remove_ids.append(*indices[:-1])
+                remove_ids = remove_ids + indices[:-1]
         self.imageInfo = np.delete(self.imageInfo, remove_ids)
 
     def screen(self):
@@ -471,7 +461,7 @@ class MethodistFull(Dataset):
         if "pos_df" in dir(self):
             for filePath in self.filenames:
                 info = self.search_info(filePath)
-                assert info != -1, "No matched info!!"
+                assert info != -1, "No matched info for {:s}!!".format(filePath)
                 l = self.load_pos(info)
 
                 # print("")
@@ -690,7 +680,7 @@ if __name__ == "__main__":
     test = True
     inference = False
     config = IncidentalConfig()
-    config.set_data_dir()
+    # config.set_data_dir()
     config.SPLIT_SEED = 128
     # config.LIMIT_TRAIN = args.limit_train
     # config.AUGTYPE["flip"] = args.flip
