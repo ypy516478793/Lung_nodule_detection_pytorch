@@ -16,33 +16,33 @@ import torch
 import time
 import os
 
-exclude = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
-           "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
-           "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
-           "041293960-20170227", "000033167-20131213", "022528020-20180525", "025432105-20180730",
-           "000361956-20180625"]
 
 class IncidentalConfig(object):
     CROP_LUNG = True
     MASK_LUNG = True
-    PET_CT = False
+    PET_CT = None
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/"
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_unlabeled/"
     # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben"
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
+    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
     INFO_FILE = "CTinfo.npz"
-    POS_LABEL_FILE = "pos_labels_norm.csv"
+    # POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
-    # POS_LABEL_FILE = None
-    BLACK_LIST = []
+    POS_LABEL_FILE = None
+    BLACK_LIST = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
+                  "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
+                  "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
+                  "041293960-20170227", "000033167-20131213", "022528020-20180525", "025432105-20180730",
+                  "000361956-20180625"]
 
     ANCHORS = [10.0, 30.0, 60.0]
     MAX_NODULE_SIZE = 60
@@ -386,7 +386,7 @@ class MethodistFull(Dataset):
         from collections import Counter
         cnt = Counter(identifier_set)
         for k, v in cnt.items():
-            if k in exclude:
+            if k in self.blacklist:
                 indices = [i for i, x in enumerate(identifier_set) if x == k]
                 remove_ids = remove_ids + indices
             elif v > 1:

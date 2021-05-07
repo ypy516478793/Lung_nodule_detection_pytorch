@@ -33,7 +33,7 @@ def main(root_dir, kfold):
     sens_itp_list = []
     for i in range(kfold):
         result_dir = root_dir + "_{:d}fold_{:d}".format(kfold, i)
-        result_file = "froc_gt_prob_vectors_masked_cropped_detp0.0_nms0.1.csv"
+        result_file = "froc_gt_prob_vectors__detp0.0_nms0.1.csv"
         result_path = os.path.join(result_dir, result_file)
         result = np.genfromtxt(result_path, delimiter=",")
         FROCGTList, FROCProbList = result[:, 0], result[:, 1]

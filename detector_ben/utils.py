@@ -52,9 +52,10 @@ def stack_nodule(images, label, prob=None, rows=5, cols=5, show_every=2, patchTy
     :param patchType: Circle or Rectangle
     :return: figure
     '''
-    fig,ax = plt.subplots(rows,cols,figsize=[9, 9])
+    fig,ax = plt.subplots(rows,cols,figsize=[15, 15])
     num_show = rows*cols
     z, y, x, d = label
+    prob = round(1 / (1 + np.exp(-prob)), 5)
     try:
         nz, h, w = images.shape
     except ValueError:
