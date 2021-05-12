@@ -1,6 +1,4 @@
 
-
-
 # Incidental Lung Nodule Project Documentation
 
 
@@ -135,7 +133,3 @@ Go to open-source website [make sense](https://www.makesense.ai/) to annotate al
 - `--gpu`: [***str***] GPUs to be used
 - `--mask`(`-m`): [***bool***] Apply unsupervised lung mask in preprocessing
 - `--crop`(`-c`): [***bool***] Crop masked images in preprocessing
-
-
-
-
