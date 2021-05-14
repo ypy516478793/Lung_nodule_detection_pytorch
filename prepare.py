@@ -1271,7 +1271,6 @@ def get_infos_from_npz(root_dir):
 
 def extract_central_slice(root_dir, save_dir, ck_path, normalize=True):
     from PIL import Image
-    from show_results import plot_bbox
 
     checklist_df = pd.read_excel(ck_path, skiprows=1, dtype={"date": str})
     change_root_info(root_dir) # change image path in the root info file
@@ -1281,16 +1280,6 @@ def extract_central_slice(root_dir, save_dir, ck_path, normalize=True):
     save_dir = os.path.join(save_dir, "central_slices_{:s}".format(norm_str))
     os.makedirs(save_dir, exist_ok=True)
 
-    # pos_df = pd.read_csv(os.path.join(os.path.dirname(root_dir), "pos_labels_raw.csv"), dtype={"date": str})
-
-    # rootFolder = "data_king/labeled/"
-    # pos_label_file = "data/pos_labels.csv"
-    # cat_label_file = "data/Lung Nodule Clinical Data_Min Kim - Added Variables 10-2-2020.xlsx"
-    # cube_size = 64
-    # lungData = LungDataset(rootFolder, pos_label_file=pos_label_file, cat_label_file=cat_label_file,
-    #                        cube_size=cube_size, train=None, screen=False, clinical=False)
-    # saveDir = "isotropic_central_slices"
-    # os.makedirs(saveDir, exist_ok=True)
     for i in tqdm(range(len(imageInfo))):
         info = imageInfo[i]
         save_name = "{:s}_{:s}_{:s}".format(info["pstr"], info["patientID"], info["date"])
@@ -1305,6 +1294,11 @@ def extract_central_slice(root_dir, save_dir, ck_path, normalize=True):
         zs = checklist_df[existId]["z"].values
         for z in zs:
             z = z - 1
+            if normalize:
+                # Change position z from raw to normalized
+                raw_pos = np.concatenate([[1, 1], [z], [1]])
+                norm_pos = resample_pos(raw_pos, thickness, spacing, new_spacing=[1, 1, 1], imgshape=img.shape)
+                z = int(norm_pos[2])
             c_img = img[z]
             image_save_dir = os.path.join(save_dir, save_name + "_no{:d}_z{:d}.png".format(i, z))
             PILimg = Image.fromarray(c_img)
