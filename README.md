@@ -5,6 +5,19 @@
 ## Nodule Detection
 
 ### Data Preparation
+
+#### Useful Information
+- Code location: `Z:\Incidental_Lung_Project\PycharmProjects\Data_pulling`
+- Data location: `Z:\Incidental_Lung_Project\Methodist_incidental_Kim`
+- Possible series name of lung window: [`"lung", "LUNG", "LUNGS", "LUNG WINDOWS", "lung window", "Lung", "Lung 5.0", "LUNG 10.0 CE", "Chest", "PRE CHEST", "CT SLICES 50cm DFOV",
+               "CT SLICES 50cm", "CTA CHEST  5.0", "HIGH RES CHEST", "HIGH RESOLUTION CHEST", "INSPIRATION LUNG"
+               "CT Atten Cor Head In 3.75thk", "CT ATTEN COR", "SUPER D CHEST", "INSPIRATION LUNGS", "PULMON 2.0 B60f",
+               "CHEST WITH", "Thorax 5.0 B31f", "Thorax 3.0 B31f", "CT Atten Cor Head In", "VOLUMEN MEDIASTINO S/C",
+               "STANDARD FULL", "Abd Venous 6.0 B60f", "CHEST 6.0 B65f", "Abdomen Arteri 1.5 B20f", "Thorax 1.5 B40f",
+               "Standard/Full", "Recon2 Standard/Full", "CTAC HEAD IN TRANS TOMO", "CT SLICES 50", "WB CT SLICES",
+               "CT WB 5.0 B31s", "CT Atten Cor 3.75thk"`]
+
+
 #### Workflow
 > Create ***details.xlsx***/***checklist.xlsx*** --> Pull **dicom** images --> Get raw/normalized data saved in **.npz** format --> Annotate the **central slices**  --> Generate location label file ***pos_label_norm.csv*** --> Preprocess data by **lung segmentation** and **cropping**.
 
