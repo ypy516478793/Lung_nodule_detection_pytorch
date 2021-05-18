@@ -980,6 +980,7 @@ def prepare_masked_cropped_images(root_dir, save_dir):
     new_info_path = os.path.join(save_dir, "CTinfo.npz")
     np.savez_compressed(new_info_path, info=infos)
     print("Save all scan infos to {:s}".format(new_info_path))
+    change_root_info(save_dir)
     pos_label_file = "pos_labels_norm.csv"
     copyfile(os.path.join(root_dir, pos_label_file), os.path.join(save_dir, pos_label_file))
 

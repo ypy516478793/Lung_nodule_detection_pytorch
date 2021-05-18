@@ -9,8 +9,12 @@ Low-dose LUNA16 trained model:
 
 
 Run inference:
-    -d=methodistFull --inference=True --gpu="0"
+    -d=methodistFull --inference=True --gpu="0" --save-dir=Kim_unlabeled
     --resume="../detector_ben/results/res18-20210105-171908/050.ckpt"
+
+    python detect.py \
+        -d=methodistFull --inference=True --gpu=0,1,2,3  --save-dir=Kim_unlabeled \
+        --resume=/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_4/005.ckpt
 """
 
 import sys
@@ -29,6 +33,7 @@ from copy import deepcopy
 from tqdm import tqdm
 
 import imgaug.augmenters as iaa
+import nibabel as nib
 import numpy as np
 import argparse
 import shutil
@@ -120,7 +125,7 @@ parser.add_argument("--splice", default=False, type=eval, help="splice")
 parser.add_argument("--kfold", default=None, type=int, help="number of kfold for train_val")
 parser.add_argument("--split_id", default=None, type=int, help="split id when use kfold")
 
-parser.add_argument("--n_test", default=2, type=int, metavar="N",
+parser.add_argument("--n_test", default=1, type=int, metavar="N",
                     help="number of gpu for test")
 parser.add_argument("--train_patience", type=int, default=10,
                     help="If the validation loss does not decrease for this number of epochs, stop training")
@@ -920,6 +925,12 @@ def inference(data_loader, net, get_pbb, save_dir, config):
                         bbox_inches="tight", dpi=200)
             plt.close(fig)
             plot_bbox(os.path.join(save_dir, name, "pred{:s}_{:d}".format(ori_str, j)), img_infer, pbb_infer[j][1:5], show=False)
+
+        # save into nifti format
+        img_infer_xyz = np.transpose(img_infer, [2, 1, 0])
+        imgNifti = nib.Nifti1Image(img_infer_xyz, np.eye(4))
+        nib.save(imgNifti, os.path.join(save_dir, name, "recover_CT_testsample{:s}.nii.gz".format(ori_str)))
+
         np.save(os.path.join(save_dir, name, "pbb{:s}.npy".format(ori_str)), pbb_infer)
         if not os.path.exists(os.path.join(save_dir, name, "pbb{:s}.txt".format(ori_str))):
             with open(os.path.join(save_dir, name, "pbb{:s}.txt".format(ori_str)), "a+") as f:
