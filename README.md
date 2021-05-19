@@ -125,14 +125,36 @@ Go to open-source website [make sense](https://www.makesense.ai/) to annotate al
 
 ### Run detection code
 #### Train
-```python detect.py -d=methodistFull --test=False --gpu="2,3" --start-epoch=0```
+1. Set `DATA_DIR, PET_CT, POS_LABEL_FILE = "pos_labels_norm.csv"` arguments in `methodistFull.py` file
+2. ```python detect.py -d=methodistFull --test=False --gpu="2,3" --save-dir=CODETEST --resume="../detector_ben/results/PET_newMask_rs42_augRegular_5fold_2/029.ckpt" --start-epoch=0 --best_loss=0.3076```
 #### Test
-```python detect.py -d=methodistFull --test=True --gpu="2,3" --resume="../detector_ben/results/res18-20201202-112441/026.ckpt"```
+```python detect.py -d=methodistFull --test=True --gpu="2,3" --save-dir=CODETEST --resume="../detector_ben/results/PET_newMask_rs42_augRegular_5fold_2/029.ckpt"```
 #### Inference
-1. Set `POS_LABEL_FILE = None` in `methodistFull.py` file.
+1. Set `POS_LABEL_FILE = None` arguments in `methodistFull.py` file.
 2. ```python detect.py -d=methodistFull --test=True --gpu="2,3" --resume="../detector_ben/results/res18-20201202-112441/026.ckpt"```
-#### Parameters
 
+#### Run kfold for Methodist data
+1. Set `DATA_DIR, PET_CT, POS_LABEL_FILE = "pos_labels_norm.csv"` arguments in `methodistFull.py` file
+2. Set `DATA_DIR, SAVE_DIR` arguments in `PET_aug_newMask.sh` file (in scripts folder).
+3. Run `PET_aug_newMask.sh`.
+
+#### Arguments
+
+##### methodistFull.py (in dataLoader folder)
+- `MASK_LUNG`: [***bool***] Unsupervised lung mask was applied in preprocessing
+- `CROP_LUNG`: [***bool***] Cropped masked images in preprocessing
+- `DATA_DIR`: [***str***] Data directory that stores the npz data
+- `POS_LABEL_FILE`: [***bool***] Cropped masked images in preprocessing
+- `BLACK_LIST`: [***list***] List of image to be excluded from the dataset
+- `AUGTYPE`: [***dict***] Dict of augmentation options to be used
+
+##### luna.py (in dataLoader folder)
+- `DATA_DIR`: [***str***] Data directory that has root folder (LUNA16)
+- `TRAIN_DATA_DIR`: [***str***] List of subdirectories for training
+- `VAL_DATA_DIR`: [***str***] List of subdirectories for validation
+- `TEST_DATA_DIR`: [***str***] List of subdirectories for test
+
+##### detect.py
 - `--datasource`(`-d`): [***str***] Datasource (options: [luna, methodist])
 - `--model`(`-m`): [***str***] Model to be used  (default: 3D Resnet-18)
 - `--epochs`(`-e`): [***int***] Number of total epochs to run
@@ -144,5 +166,8 @@ Go to open-source website [make sense](https://www.makesense.ai/) to annotate al
 - `--test`(`-t`): [***bool***] True if in test mode, otherwise in train or inference mode
 - `--inference`(`-i`): [***bool***] True if in inference mode, otherwise in train or test mode
 - `--gpu`: [***str***] GPUs to be used
-- `--mask`(`-m`): [***bool***] Apply unsupervised lung mask in preprocessing
-- `--crop`(`-c`): [***bool***] Crop masked images in preprocessing
+- `--kfold`: [***int***] Number of kfold for train_val
+- `--split_id`: [***int***] Split id when use kfold
+
+
+
