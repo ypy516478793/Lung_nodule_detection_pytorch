@@ -21,10 +21,6 @@ class IncidentalConfig(object):
     CROP_LUNG = True
     MASK_LUNG = True
     PET_CT = None
-    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/"
-    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/"
-    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_unlabeled/"
-    # ROOT_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
     DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
@@ -32,12 +28,11 @@ class IncidentalConfig(object):
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
-    INFO_FILE = "CTinfo.npz"
-    # POS_LABEL_FILE = "pos_labels_norm.csv"
+    POS_LABEL_FILE = None
     # POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
-    POS_LABEL_FILE = None
+    INFO_FILE = "CTinfo.npz"
     BLACK_LIST = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
                   "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
                   "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
@@ -45,8 +40,8 @@ class IncidentalConfig(object):
                   "000361956-20180625"]
 
     ANCHORS = [10.0, 30.0, 60.0]
-    MAX_NODULE_SIZE = 60
     # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
+    MAX_NODULE_SIZE = 60
     CHANNEL = 1
     CROP_SIZE = [96, 96, 96]
     STRIDE = 4
@@ -81,15 +76,6 @@ class IncidentalConfig(object):
     LIMIT_TRAIN = None
     SPLIT_ID = None
 
-    # def set_data_dir(self):
-    #     if self.MASK_LUNG:
-    #         if self.CROP_LUNG:
-    #             self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_with_crop")
-    #         else:
-    #             self.DATA_DIR = os.path.join(self.ROOT_DIR, "masked_first")
-    #     else:
-    #         self.DATA_DIR = os.path.join(self.ROOT_DIR, "labeled")
-
     def display(self):
         """Display Configuration values."""
         print("\nConfigurations:")
@@ -122,8 +108,6 @@ def mask_scan(images):
         masked_images.append(make_lungmask(img))
     masked_images = np.stack(masked_images)
     return masked_images
-    # plt.imshow(images[10])
-    # print("Images{:d} shape: ".format(imageId), images.shape)
 
 def make_lungmask(img, display=False):
     raw_img = np.copy(img)
@@ -319,41 +303,6 @@ class MethodistFull(Dataset):
         self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN,
                          kfold=self.kfold, splitId=config.SPLIT_ID)
 
-        # ---- plot bbox ---- #
-        # info = self.imageInfo[1]
-        # pstr = info["pstr"]
-        # # s = info["imagePath"].find("Lung_patient")
-        # # p = os.path.join("/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/labeled/",
-        # #                  info["imagePath"][s:].replace("\\", "/"))
-        # p = info["imagePath"]
-        # img = lumTrans(np.load(p)["image"])
-        # pos = self.load_pos(info)
-        # from show_results import plot_bbox
-        # save_dir = "reports"
-        # os.makedirs(save_dir, exist_ok=True)
-        # plot_bbox(os.path.join(save_dir, "{:s}_newLabel.png".format(pstr)), img, None, pos[0], show=False,
-        #           title="{:s}_newLabel".format(pstr))
-
-        # ---- check labels ---- #
-        # for info in self.imageInfo:
-        #     img = np.load(info["imagePath"], allow_pickle=True)["image"]
-        #     img = lumTrans(img)
-        #     pos = self.load_pos(info)
-        #     for p in pos:
-        #         plot_bbox(None, img, p, title=info["pstr"])
-
-        # self.aug_op = "flip_rot"
-        # self.augmentor = self.set_augment()
-
-        # sometimes = lambda aug: iaa.Sometimes(0.5, aug)
-        # self.seq = iaa.Sequential([iaa.Fliplr(0.5),
-        #                            iaa.Flipud(0.5),
-        #                            sometimes(iaa.Rot90([1, 3])),
-        #                            sometimes(iaa.Affine(rotate=(-45, 45))),
-        #                            iaa.TranslateY(px=(-40, 40)),
-        #                            iaa.TranslateX(px=(-40, 40)),
-        #                            ])
-
     def __check_labels__(self):
         for info in tqdm(self.imageInfo):
             pstr = info["pstr"]
@@ -449,12 +398,6 @@ class MethodistFull(Dataset):
             fileList = [f for f in fileList if (f not in self.blacklist)]
         self.filenames = [os.path.join(self.data_dir, f) for f in fileList]
 
-        # self.filenames = [i["imagePath"] for i in self.imageInfo]
-        # self.filenames = [os.path.join(data_dir, "%s_clean.npy" % idx) for idx in idcs]
-        # print self.filenames
-        # self.kagglenames = [f for f in self.filenames]  # if len(f.split("/")[-1].split("_")[0])>20]
-        # self.lunanames = [f for f in self.filenames if len(f.split("/")[-1].split("_")[0])<20]
-
         ## Load the label for current subset
         labels = []
         print("Subset {:s} has {:d} samples.".format(subset, len(fileList)))
@@ -472,14 +415,9 @@ class MethodistFull(Dataset):
                         l = np.array([[0, 0, 0, 0]])
                     else:
                         ll = np.copy(l).T
-                        # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
-                        # label2[3] = label2[3] * spacing[1] / resolution[1]
                         ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
                         l = ll[:4].T
 
-                # print data_dir, idx
-                # l = np.load(data_dir+idx+"_label.npy",allow_pickle="True")
-                # print l, os.path.join(data_dir, "%s_label.npy" %idx)
                 if np.all(l == 0):
                     l = np.array([])
                 labels.append(l)
@@ -520,6 +458,16 @@ class MethodistFull(Dataset):
         pos = pos[pos[:, -1] < self.config.MAX_NODULE_SIZE]
 
         return pos
+
+    ## plot histogram of the nodule diameters
+    def plot_nodule_hist(self):
+        all_pos = [self.load_pos(i) for i in self.imageInfo]
+        all_pos = np.concatenate(all_pos)
+        plt.hist(all_pos[:, -1], bins=100)
+        plt.title("Histogram of the nodule diameters")
+        plt.xlabel("Diameter (ps)")
+        plt.ylabel("Count")
+        plt.savefig("Histogram_d.png", bbox_inches="tight", dpi=200)
 
     def __getitem__(self, idx, split=None):
         t = time.time()
@@ -680,19 +628,7 @@ if __name__ == "__main__":
     test = True
     inference = False
     config = IncidentalConfig()
-    # config.set_data_dir()
     config.SPLIT_SEED = 128
-    # config.LIMIT_TRAIN = args.limit_train
-    # config.AUGTYPE["flip"] = args.flip
-    # config.AUGTYPE["swap"] = args.swap
-    # config.AUGTYPE["scale"] = args.scale
-    # config.AUGTYPE["rotate"] = args.rotate
-    # config.AUGTYPE["contrast"] = args.contrast
-    # config.AUGTYPE["bright"] = args.bright
-    # config.AUGTYPE["sharp"] = args.sharp
-    # config.AUGTYPE["splice"] = args.splice
-    # config.KFOLD = args.kfold
-    # config.SPLIT_ID = args.split_id
 
     if test:
         subset = "test"
@@ -729,14 +665,10 @@ if __name__ == "__main__":
         existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
         pos = pos_df[existId]
         temp = pos[["x", "y", "z", "d"]].values
-        # temp[:, 2] = temp[:, 2] - 1
-        # temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
         pos = temp[:, [2, 1, 0, 3]]
 
         extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
         ll = np.copy(pos).T
-        # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
-        # label2[3] = label2[3] * spacing[1] / resolution[1]
         ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
         pos = ll[:4].T
 
@@ -784,9 +716,6 @@ if __name__ == "__main__":
         for sample, label, coord, target in tqdm(iterator):
             print(i)
             i += 1
-    # sample, label, coord, target = next(iterator)
-
-    # sample, label, coord, target = next(iterator)
 
     from detector_ben.utils import stack_nodule
     fig = stack_nodule(sample[1, 0], target[1].numpy())
@@ -794,35 +723,4 @@ if __name__ == "__main__":
     plt.close(fig)
 
 
-    # img_grid = make_grid(x1[:, :, cube_size // 2])
-
     print()
-
-
-
-# def label2target(label, i):
-#     a = label[i]
-#     ids = np.where(a[..., 0] == 1)
-#     ids = np.concatenate(ids)
-#     print("ids is: ", ids)
-#     config = IncidentalConfig()
-#     stride = config.STRIDE
-#     pos = ids[:3]
-#     # coord[0, :, *pos]
-#     offset = (stride - 1) / 2
-#     oh = np.arange(offset, offset + stride * (config.CROP_SIZE[0] - 1) + 1, stride)
-#     c = oh[pos]
-#     l = label[i, ids[0], ids[1], ids[2], ids[3]]
-#     l[-1] = np.exp(l[-1])
-#     ll = (l[1:] * 20).numpy() + np.array(c.tolist() + [0,])
-#     plot_bbox(None, sample[0, 0], None, label=ll[[2, 1, 0, 3]])
-
-
-# ## plot histogram of the nodule diameters
-# all_pos = [self.load_pos(i) for i in self.imageInfo]
-# all_pos = np.concatenate(all_pos)
-# plt.hist(all_pos[:, -1], bins=100)
-# plt.title("Histogram of the nodule diameters")
-# plt.xlabel("Diameter (ps)")
-# plt.ylabel("Count")
-# plt.savefig("Histogram_d.png", bbox_inches="tight", dpi=200)

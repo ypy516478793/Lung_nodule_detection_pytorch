@@ -32,17 +32,8 @@ Usage instructions:
 """
 
 import os
-import shutil
-import numpy as np
-import sys
-# sys.path.append('./')
-# import config_training
-# config = config_training.config
-from scipy.io import loadmat
 from shutil import copyfile
 import numpy as np
-import h5py
-import pandas
 import scipy
 import matplotlib.pyplot as plt
 from scipy.ndimage.interpolation import zoom
@@ -59,9 +50,6 @@ from tqdm import tqdm
 from natsort import natsorted
 import pandas as pd
 import argparse
-# import imgaug.augmenters as iaa
-# import imgaug as ia
-# from show_results import plot_bbox
 
 import warnings
 
@@ -894,28 +882,6 @@ def mask_scan(images):
     masks = np.stack(masks)
     return masked_images, masks
 
-def prepare_cropped_labels(save_dir):
-    info_path = os.path.join(save_dir, "CTinfo.npz")
-    infos = np.load(info_path, allow_pickle=True)["info"]
-
-    pos_label_file = "pos_labels.csv"
-    pos_df = pd.read_csv(os.path.join(save_dir, pos_label_file), dtype={"MRN": str, "date": str})
-
-    for info in tqdm(infos):
-        save_path = info["imagePath"]
-        extendbox = np.load(save_path.replace(".npz","_extendbox.npz"))["extendbox"]
-
-        thickness, spacing = info["sliceThickness"], info["pixelSpacing"]
-        pstr = info["pstr"]
-        dstr = info["date"]
-        patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
-        assert patient_colname in pos_df
-        existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
-        pos = pos_df[existId][["x", "y", "z", "d"]].values
-        pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
-        pos = pos[:, [2, 1, 0, 3]]
-
-        print("")
 
 def prepare_masked_images(root_dir, save_dir):
     info_path = os.path.join(root_dir, "CTinfo.npz")
@@ -1503,105 +1469,6 @@ def update_dataset_checklist(root_dir, save_dir, ck_path):
     checklist_df.to_excel(os.path.join(save_dir, ck_path.replace(".xlsx", "_new.xlsx")), index=False)
     print("Saved to {:s}".format(os.path.join(save_dir, ck_path.replace(".xlsx", "_new.xlsx"))))
 
-# def data_augmentation(root_dir, save_dir):
-#     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
-#     aug_options = ["flip_rot"]
-#     seq = iaa.Sequential([iaa.Fliplr(0.5),
-#                            iaa.Flipud(0.5),
-#                            sometimes(iaa.Rot90([1, 3])),
-#                            sometimes(iaa.Affine(rotate=(-45, 45))),
-#                            iaa.TranslateY(px=(-40, 40)),
-#                            iaa.TranslateX(px=(-40, 40)),
-#                            ])
-#
-#     info_path = os.path.join(root_dir, "CTinfo.npz")
-#     infos = np.load(info_path, allow_pickle=True)["info"]
-#     i = 0
-#
-#     pos_label_file = "pos_labels.csv"
-#     pos_df = pd.read_csv(os.path.join(root_dir, pos_label_file), dtype={"MRN": str, "date": str})
-#
-#     for aug_op in aug_options:
-#         if aug_op == "flip_rot":
-#             augmentor = iaa.Sequential([iaa.Fliplr(0.5), iaa.Rot90([0, 3])])
-#         elif aug_op == "gamma_contrast":
-#             augmentor = iaa.GammaContrast((2.0))
-#         elif aug_op == "shift":
-#             augmentor = iaa.Sequential([iaa.TranslateY(px=(-40, 40)), iaa.TranslateX(px=(-40, 40))])
-#         for info in tqdm(infos):
-#             i = i + 1
-#             # if i < 7:
-#             #     continue
-#             s = info["imagePath"].find("Lung_patient")
-#             save_path = os.path.join(save_dir, aug_op ,info["imagePath"][s:].replace("\\", "/"))
-#             load_path = os.path.join(root_dir, info["imagePath"][s:].replace("\\", "/"))
-#             os.makedirs(os.path.dirname(save_path), exist_ok=True)
-#
-#             imgs = np.load(load_path, allow_pickle=True)["image"]
-#             imgs, masks = mask_scan(imgs)
-#             imgs = lumTrans(imgs)
-#
-#             zz, yy, xx = np.where(masks)
-#             box = np.array([[np.min(zz), np.max(zz)], [np.min(yy), np.max(yy)], [np.min(xx), np.max(xx)]])
-#             box = np.floor(box).astype('int')
-#             margin = 5
-#             extendbox = np.vstack([np.max([[0, 0, 0], box[:, 0] - margin], 0),
-#                                    np.min([masks.shape, box[:, 1] + 2 * margin], axis=0).T]).T
-#             sliceim = imgs[extendbox[0, 0]:extendbox[0, 1],
-#                       extendbox[1, 0]:extendbox[1, 1],
-#                       extendbox[2, 0]:extendbox[2, 1]]
-#             sliceim = sliceim[np.newaxis, ...]
-#
-#             thickness, spacing = info["sliceThickness"], info["pixelSpacing"]
-#             pstr = info["pstr"]
-#             dstr = info["date"]
-#             patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
-#             assert patient_colname in pos_df
-#             existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == dstr)
-#             pos = pos_df[existId][["x", "y", "z", "d"]].values
-#             pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
-#             pos = pos[:, [2, 1, 0, 3]]
-#
-#
-#             if len(pos) == 0:
-#                 l = np.array([[0, 0, 0, 0]])
-#             else:
-#                 ll = np.copy(pos).T
-#                 # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
-#                 # label2[3] = label2[3] * spacing[1] / resolution[1]
-#                 ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
-#                 l = ll[:4].T
-#
-#             bb = []
-#             for li in l:
-#                 bb.append(ia.BoundingBox(x1=li[2] - li[3] / 2, y1=li[1] - li[3] / 2, x2=li[2] + li[3] / 2, y2=li[1] + li[3] / 2))
-#             imgs_aug = []
-#             for ii in range(len(sliceim[0])):
-#                 img_aug, bbs_aug = augmentor(images=sliceim[0][ii], bounding_boxes=bb)
-#                 imgs_aug.append(img_aug)
-#
-#             d = bbs_aug.y2 - bbs_aug.y1
-#             x = (bbs_aug.x1 + bbs_aug.x2) / 2
-#             y = (bbs_aug.y1 + bbs_aug.y2) / 2
-#             plot_bbox(None, img_aug, (y, x, d), label=None, show=True)
-#
-#             savepath = os.path.dirname(save_path)
-#             name = os.path.basename(save_path).strip(".npz")
-#             # spacing = np.array([1, 1, 1])
-#             # origin = np.array([0, 0, 0])
-#             np.savez_compressed(os.path.join(savepath, name + '_clean.npz'), image=sliceim, info=info)
-#             # np.save(os.path.join(savepath, name+'_spacing.npy'), spacing)
-#             np.savez_compressed(os.path.join(savepath, name + '_extendbox.npz'), extendbox=extendbox)
-#             # np.save(os.path.join(savepath, name+'_origin.npy'), origin)
-#             np.savez_compressed(os.path.join(savepath, name + '_mask.npz'), masks=masks)
-#
-#     #     info["imagePath"] = save_path
-#     #     np.savez_compressed(save_path, image=imgs, info=info)
-#     #     print("Save masked images to {:s}".format(save_path))
-#     #
-#         new_info_path = os.path.join(save_dir, "CTinfo.npz")
-#         np.savez_compressed(new_info_path, info=infos)
-#         print("Save all scan infos to {:s}".format(new_info_path))
 
 if __name__ == '__main__':
 
@@ -1619,20 +1486,6 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--crop', type=eval, help='crop masked images in preprocessing', default=True)
     parser.add_argument('-n', '--normalize', type=eval, help='normalized or raw data', default=True)
     args = parser.parse_args()
-
-    # MASK_CROP = False
-    # MASK_LUNG = False
-    # PET_CT = False
-    #
-    # parser.add_argument('--detp', type=list_float_parser, help='detect probability threshold', default="[0]")
-    # parser.add_argument('--nmsthresh', type=list_float_parser, help='nms threshold', default="[0.1]")
-    # parser.add_argument('--iouthresh', type=float, help='iou threshold', default=None)
-    # parser.add_argument('--result_dir', type=str, help='result directory',
-    #                     default="../detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/")
-    # parser.add_argument('--data_dir', type=str, help='data file directory',
-    #                     default="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/")
-    # parser.add_argument('--extra_str', type=str, help='extra string for data', default="masked_cropped")
-    # parser.add_argument('--kfold', type=int, help='kfold split', default=None)
 
     root_dir = args.root_dir
     save_dir = args.save_dir
@@ -1666,30 +1519,3 @@ if __name__ == '__main__':
         update_dataset_details(root_dir, save_dir)
     elif args.command == "update_checklist":
         update_dataset_checklist(root_dir, save_dir, ck_path)
-    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
-    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
-    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
-
-    # dst_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
-    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
-    # dst_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled"
-    # change_root_info(dst_dir)
-    # assign_PET_label(dst_dir)
-
-    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/"
-    # root_dir = "/data/pyuan2/Methodist_incidental/"
-    #
-    # save_dir = os.path.join(root_dir, "data_kim/masked_with_crop/")
-    # root_dir = os.path.join(root_dir, "data_kim/labeled/")
-    # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_TC/masked_first/"
-    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Incidental_lung/data_TC/labeled/"
-    #
-    # save_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_first/"
-    # root_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
-    #
-    # prepare_masked_images(root_dir, save_dir)
-    # prepare_cropped_labels(save_dir)
-
-    # save_dir = os.path.join(root_dir, "data_kim/")
-    # root_dir = os.path.join(root_dir, "data_kim/labeled/")
-    # data_augmentation(root_dir, save_dir)

@@ -12,16 +12,16 @@ import os
 
 class LunaConfig(object):
     DATA_DIR = "../"
-    TRAIN_DATA_DIR = ['data/preprocessed/subset0/',
-                      'data/preprocessed/subset1/',
-                      'data/preprocessed/subset2/',
-                      'data/preprocessed/subset3/',
-                      'data/preprocessed/subset4/',
-                      'data/preprocessed/subset5/',
-                      'data/preprocessed/subset6/',
-                      'data/preprocessed/subset7/']
-    VAL_DATA_DIR = ['data/preprocessed/subset8/']
-    TEST_DATA_DIR = ['data/preprocessed/subset9/']
+    TRAIN_DATA_DIR = ['LUNA16/preprocessed/subset0/',
+                      'LUNA16/preprocessed/subset1/',
+                      'LUNA16/preprocessed/subset2/',
+                      'LUNA16/preprocessed/subset3/',
+                      'LUNA16/preprocessed/subset4/',
+                      'LUNA16/preprocessed/subset5/',
+                      'LUNA16/preprocessed/subset6/',
+                      'LUNA16/preprocessed/subset7/']
+    VAL_DATA_DIR = ['LUNA16/preprocessed/subset8/']
+    TEST_DATA_DIR = ['LUNA16/preprocessed/subset9/']
     BLACK_LIST = []
 
     ANCHORS = [5., 10., 20.]
@@ -249,103 +249,6 @@ class Luna(Dataset):
             if len(self.bboxes) > 0:
                 self.bboxes = np.concatenate(self.bboxes, axis=0)
 
-    #
-    #     self.crop = Crop(config)
-    #     self.label_mapping = LabelMapping(config, self.phase)
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #     # if subset == "inference":
-    #     #     infos = self.imageInfo
-    #     # else:
-    #     #     ## train/val/test split
-    #     #     trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
-    #     #     valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
-    #     #
-    #     #     assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
-    #     #     if subset == "train":
-    #     #         infos = trainInfo
-    #     #     elif subset == "val":
-    #     #         infos = valInfo
-    #     #     else:
-    #     #         infos = testInfo
-    #
-    #     ## train/val/test split
-    #     trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=42)
-    #     valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=42)
-    #
-    #     if subset == "train":
-    #         infos = trainInfo
-    #     elif subset == "val":
-    #         infos = valInfo
-    #     else:
-    #         infos = testInfo
-    #
-    #     ## Get the file list for current subset
-    #     start = infos[0]["imagePath"].find("Lung_patient")
-    #     fileList = [i["imagePath"][start:] for i in infos]
-    #     if subset != "test":
-    #         fileList = [f for f in fileList if (f not in self.blacklist)]
-    #     self.filenames = [os.path.join(self.data_dir, f) for f in fileList]
-    #
-    #     # self.filenames = [i["imagePath"] for i in self.imageInfo]
-    #     # self.filenames = [os.path.join(data_dir, "%s_clean.npy" % idx) for idx in idcs]
-    #     # print self.filenames
-    #     # self.kagglenames = [f for f in self.filenames]  # if len(f.split("/")[-1].split("_")[0])>20]
-    #     # self.lunanames = [f for f in self.filenames if len(f.split("/")[-1].split("_")[0])<20]
-    #
-    #     ## Load the label for current subset
-    #     labels = []
-    #     print("Subset {:s} has {:d} samples.".format(subset, len(fileList)))
-    #     if "pos_df" in dir(self):
-    #         for filePath in self.filenames:
-    #             info = self.search_info(filePath)
-    #             assert info != -1, "No matched info!!"
-    #             l = self.load_pos(info)
-    #             # print data_dir, idx
-    #             # l = np.load(data_dir+idx+"_label.npy",allow_pickle="True")
-    #             # print l, os.path.join(data_dir, "%s_label.npy" %idx)
-    #             if np.all(l == 0):
-    #                 l = np.array([])
-    #             labels.append(l)
-    #
-    #     ## Duplicate samples based on the nodule size
-    #     self.sample_bboxes = labels
-    #     if self.subset != "test":
-    #         self.bboxes = []
-    #         for i, l in enumerate(labels):
-    #             if len(l) > 0:
-    #                 for t in l:
-    #                     if t[3] > self.config.SIZE_LIM:
-    #                         self.bboxes.append([np.concatenate([[i], t])])
-    #                     if t[3] > self.config.SIZE_LIM2:
-    #                         self.bboxes += [[np.concatenate([[i], t])]] * 2
-    #                     if t[3] > self.config.SIZE_LIM3:
-    #                         self.bboxes += [[np.concatenate([[i], t])]] * 4
-    #         if len(self.bboxes) > 0:
-    #             self.bboxes = np.concatenate(self.bboxes, axis=0)
-    #
-    # def search_info(self, path):
-    #     for info in self.imageInfo:
-    #         if info["imagePath"] == path:
-    #             return info
-    #     return -1
-    #
-    # def load_pos(self, imgInfo):
-    #     thickness, spacing = imgInfo["sliceThickness"], imgInfo["pixelSpacing"]
-    #     pstr = imgInfo["pstr"]
-    #     dstr = imgInfo["date"]
-    #     existId = (self.pos_df["patient"] == pstr) & (self.pos_df["date"] == dstr)
-    #     pos = self.pos_df[existId][["x", "y", "z", "d"]].values
-    #     pos = np.array([resample_pos(p, thickness, spacing) for p in pos])
-    #     # pos = pos[:, [2, 1, 0, 3]]
-    #
-    #     return pos
-
     def __getitem__(self, idx, split=None):
         t = time.time()
         np.random.seed(int(str(t % 1)[2:7]))  # seed according to time
@@ -503,30 +406,3 @@ if __name__ == "__main__":
     # img_grid = make_grid(x1[:, :, cube_size // 2])
 
     print()
-
-# def label2target(label, i):
-#     a = label[i]
-#     ids = np.where(a[..., 0] == 1)
-#     ids = np.concatenate(ids)
-#     print("ids is: ", ids)
-#     config = LunaConfig()
-#     stride = config.STRIDE
-#     pos = ids[:3]
-#     # coord[0, :, *pos]
-#     offset = (stride - 1) / 2
-#     oh = np.arange(offset, offset + stride * (config.CROP_SIZE[0] - 1) + 1, stride)
-#     c = oh[pos]
-#     l = label[i, ids[0], ids[1], ids[2], ids[3]]
-#     l[-1] = np.exp(l[-1])
-#     ll = (l[1:] * 20).numpy() + np.array(c.tolist() + [0,])
-#     plot_bbox(None, sample[0, 0], None, label=ll[[2, 1, 0, 3]])
-
-
-# ## plot histogram of the nodule diameters
-# all_pos = [self.load_pos(i) for i in self.imageInfo]
-# all_pos = np.concatenate(all_pos)
-# plt.hist(all_pos[:, -1], bins=100)
-# plt.title("Histogram of the nodule diameters")
-# plt.xlabel("Diameter (ps)")
-# plt.ylabel("Count")
-# plt.savefig("Histogram_d.png", bbox_inches="tight", dpi=200)

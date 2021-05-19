@@ -1,20 +1,21 @@
 """
-Incidental trained model:
-    -d=methodistFull --test=False --gpu="2,3"
-    --resume="../detector_ben/results/res18-20201202-112441/026.ckpt" --start-epoch=0 --best_loss=0.3076
+Incidental train:
+    python detect.py \
+        -d=methodistFull --test=False --gpu="2,3" --save-dir=CODETEST \
+        --resume="../detector_ben/results/PET_newMask_rs42_augRegular_5fold_2/029.ckpt" --start-epoch=0 --best_loss=0.3076
+Incidental test:
+    python detect.py \
+        -d=methodistFull --test=True --gpu="2,3" --save-dir=CODETEST \
+        --resume="../detector_ben/results/PET_newMask_rs42_augRegular_5fold_2/029.ckpt"
+Incidental inference:
+    python detect.py \
+        -d=methodistFull --inference=True --gpu="2,3" --save-dir=CODETEST \
+        --resume="../detector_ben/results/PET_newMask_rs42_augRegular_5fold_2/029.ckpt"
+
 Low-dose LUNA16 trained model:
-    -d=lunaRaw --test=False --gpu="4,5,6,7"
+    -d=luna --test=False --gpu="4,5,6,7"
     --resume="../detector_ben/results/res18-20201223-115306/038.ckpt" --start-epoch=38 --best_loss=0.1206
     --resume="../detector_ben/results/res18-20210105-171908/050.ckpt" --start-epoch=50 --best_loss=0.0703
-
-
-Run inference:
-    -d=methodistFull --inference=True --gpu="0" --save-dir=Kim_unlabeled
-    --resume="../detector_ben/results/res18-20210105-171908/050.ckpt"
-
-    python detect.py \
-        -d=methodistFull --inference=True --gpu=0,1,2,3  --save-dir=Kim_unlabeled \
-        --resume=/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_4/005.ckpt
 """
 
 import sys
@@ -36,36 +37,14 @@ import imgaug.augmenters as iaa
 import nibabel as nib
 import numpy as np
 import argparse
-import shutil
 import torch
 import time
-# import time
-# import numpy as np
-# # import detector.data as datald
-# from importlib import import_module
-# import shutil
-# from tqdm import tqdm
-# from detector.utils import *
-# import pickle
-# # sys.path.append("../")
-#
-# from detector.split_combine import SplitComb
-# from sklearn.model_selection import train_test_split
-# import torch
-# from torch.nn import DataParallel
-# from torch.backends import cudnn
-# from torch.utils.data import DataLoader
-# from torch import optim
-# from torch.autograd import Variable
-# # from config_training import config as config_training
-#
-# from detector.layers import acc
+
 
 parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
 parser.add_argument("--datasource", "-d", type=str, default="luna",
                     help="luna, lunaRaw, methoidstPilot, methodistFull, additional")
 parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
-# parser.add_argument("--config", "-c", default="config_methodistFull", type=str)
 parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
                     help="number of data loading workers (default: 32)")
 parser.add_argument("--epochs", "-e", default=100, type=int, metavar="N",
@@ -101,7 +80,6 @@ parser.add_argument("--testthresh", default=-3, type=float,
                     help="threshod for get pbb")
 parser.add_argument("--split", default=8, type=int, metavar="SPLIT",
                     help="In the test phase, split the image to 8 parts")  # Split changed to 1 just to check.
-# parser.add_argument("--gpu", default="4, 5, 6, 7", type=str, metavar="N",
 parser.add_argument("--gpu", default="0, 1, 2, 3", type=str, metavar="N",
                     help="use gpu")
 parser.add_argument("--rseed", default=None, type=int, metavar="N",
@@ -109,7 +87,6 @@ parser.add_argument("--rseed", default=None, type=int, metavar="N",
 parser.add_argument("--limit_train", default=None, type=float, metavar="N",
                     help="ratio of training size")
 
-# "flip": False, "swap": False, "scale": False, "rotate": False
 parser.add_argument("--mask", default=True, type=eval, help="mask lung")
 parser.add_argument("--crop", default=True, type=eval, help="crop lung")
 
@@ -131,69 +108,16 @@ parser.add_argument("--train_patience", type=int, default=10,
                     help="If the validation loss does not decrease for this number of epochs, stop training")
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"]= args.gpu
-# n_gpu = setgpu(args.gpu)
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.nn import DataParallel
 
-# def listFiles(config_training):
-#     datarootdir = config_training["data_root_path"]
-#     traindatadir = config_training["train_data_path"]
-#     valdatadir = config_training["val_data_path"]
-#     testdatadir = config_training["test_data_path"]
-#     datasource = args.datasource
-#
-#     if datasource == "lunaRaw":
-#         trainfilelist = []
-#         for folder in os.listdir(traindatadir):
-#             for f in os.listdir(os.path.join(datarootdir, folder)):
-#                 if f.endswith(".mhd") and f[:-4] not in config_training["black_list"]:
-#                     trainfilelist.append(folder + "/" + f[:-4])
-#         valfilelist = []
-#         for folder in os.listdir(valdatadir):
-#             for f in os.listdir(os.path.join(datarootdir, folder)):
-#                 if f.endswith(".mhd") and f[:-4] not in config_training["black_list"]:
-#                     valfilelist.append(folder + "/" + f[:-4])
-#         testfilelist = []
-#         for folder in os.listdir(testdatadir):
-#             for f in os.listdir(os.path.join(datarootdir, folder)):
-#                 if f.endswith(".mhd") and f[:-4] not in config_training["black_list"]:
-#                     testfilelist.append(folder + "/" + f[:-4])
-#
-#     elif datasource == "luna":
-#         trainfilelist = []
-#         for folder in traindatadir:
-#             for f in os.listdir(os.path.join(datarootdir, folder)):
-#                 if f.endswith("_clean.npy") and f[:-10] not in config_training["black_list"]:
-#                     trainfilelist.append(folder + "/" + f[:-10])
-#         valfilelist = []
-#         for folder in valdatadir:
-#             for f in os.listdir(os.path.join(datarootdir, folder)):
-#                 if f.endswith("_clean.npy") and f[:-10] not in config_training["black_list"]:
-#                     valfilelist.append(folder + "/" + f[:-10])
-#         testfilelist = []
-#         for folder in testdatadir:
-#             for f in os.listdir(os.path.join(datarootdir, folder)):
-#                 if f.endswith("_clean.npy") and f[:-10] not in config_training["black_list"]:
-#                     testfilelist.append(folder + "/" + f[:-10])
-#
-#     elif datasource == "methodistFull":
-#         imageInfo = np.load("/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/CTinfo.npz",
-#                             allow_pickle=True)["info"]
-#         # s = imageInfo[0]["imagePath"].find("Lung_patient")
-#         # filelist = [i["imagePath"][s:] for i in imageInfo]
-#         trainfilelist, valfilelist = train_test_split(imageInfo, test_size=0.4, random_state=42)
-#         valfilelist, testfilelist = train_test_split(valfilelist, test_size=0.5, random_state=42)
-#
-#     return trainfilelist, valfilelist, testfilelist
-
 
 def main():
     ## Set gpu resources
     torch.manual_seed(0)
-    # args.n_gpu = n_gpu
 
     ## Datasource (config)
     if args.datasource == "lunaRaw":
@@ -224,7 +148,6 @@ def main():
 
         config.KFOLD = args.kfold
         config.SPLIT_ID = args.split_id
-        # config.set_data_dir()
         Dataset = MethodistFull
 
     ## Specify the save directory
@@ -250,9 +173,9 @@ def main():
     #             pass
     #         else:
     #             raise SystemExit("Manually interrupted! Try another directory")
+
     os.makedirs(save_dir, exist_ok=True)
     logfile = os.path.join(save_dir, "log")
-    # if args.test != 1:
     sys.stdout = Logger(logfile)
 
 
@@ -268,37 +191,6 @@ def main():
 
 
     config.display()
-        # pyfiles = [f for f in os.listdir("./") if f.endswith(".py")]
-        # for f in pyfiles:
-        #     shutil.copy(f,os.path.join(save_dir,f))
-
-    # datarootdir = config_training["data_root_path"]
-    # trainfilelist, valfilelist, testfilelist = listFiles(config_training)
-
-    #  trainfilelist = []
-    # # with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_train_list.pkl","rb") as f:
-    #  #    trainfilelist=pickle.load(f)
-    #  with open("../methodist_patient_names/methodist_train.pkl","rb") as f:
-    #
-    #      trainfilelist=pickle.load(f)
-    #
-    #  valfilelist = []
-    #  #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_val_list.pkl","rb") as f:
-    #   #   valfilelist=pickle.load(f)
-    #  with open ("../methodist_patient_names/methodist_val.pkl","rb") as f:
-    #      valfilelist=pickle.load(f)
-    #  testfilelist = []
-    #  #with open("/home/mpadmana/anaconda3/envs/DeepLung_original/luna_patient_names/luna_test_list.pkl","rb") as f:
-    #   #   testfilelist=pickle.load(f)
-    #  with open("../methodist_patient_names/methodist_test.pkl","rb") as f:
-    #      testfilelist=pickle.load(f)
-    #  # testfilelist=["download20180608140526download20180608140500001_1_3_12_30000018060618494775800001943"]
-
-    # trainfilelist = [i.split("_")[0] for i in os.listdir(traindatadir) if i.endswith("_clean.npy")]
-    # valfilelist = [i.split("_")[0] for i in os.listdir(valdatadir) if i.endswith("_clean.npy")]
-    # testfilelist = [i.split("_")[0] for i in os.listdir(testdatadir) if i.endswith("_clean.npy")]
-
-    ## Define writer
 
     ## Set writer
     global writer
@@ -313,7 +205,6 @@ def main():
     net = net.cuda()
     loss = loss.cuda()
     net = DataParallel(net)
-    # model = import_module(args.model)
 
 
     ## Load saved model
@@ -372,24 +263,6 @@ def main():
 
         test(test_loader, net, get_pbb, save_dir, config)
 
-        # dataset = Dataset(
-        #     datarootdir,
-        #     testfilelist,
-        #     config,
-        #     phase="test",
-        #     split_comber=split_comber)
-        # test_loader = DataLoader(
-        #     dataset,
-        #     batch_size=1,
-        #     shuffle=False,
-        #     num_workers=0,
-        #     collate_fn=datald.collate,
-        #     pin_memory=False)
-
-        # for i, (data, target, coord, nzhw) in enumerate(test_loader): # check data consistency
-        #     if i >= len(testfilelist)/args.batch_size:
-        #         break
-
     ## Run train
     else:
 
@@ -420,62 +293,6 @@ def main():
             train(train_loader, net, loss, epoch, optimizer, get_lr)
             best_loss, patience_train = validate(val_loader, net, loss, epoch, save_dir, best_loss, patience_train)
 
-    # net = DataParallel(net)
-    # print(len(trainfilelist))
-    # dataset = Dataset(
-    #     datarootdir,
-    #     trainfilelist,
-    #     config,
-    #     phase="train")
-    # train_loader = DataLoader(
-    #     dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=True,
-    #     num_workers=args.workers,
-    #     pin_memory=True)
-    #
-    # dataset = Dataset(
-    #     datarootdir,
-    #     valfilelist,
-    #     config,
-    #     phase="val")
-    # val_loader = DataLoader(
-    #     dataset,
-    #     batch_size=args.batch_size,
-    #     shuffle=False,
-    #     num_workers=args.workers,
-    #     pin_memory=True)
-
-    # for i, (data, target, coord) in enumerate(train_loader): # check data consistency
-    #     if i >= len(trainfilelist)/args.batch_size:
-    #         break
-    #
-    # for i, (data, target, coord) in enumerate(val_loader): # check data consistency
-    #     if i >= len(valfilelist)/args.batch_size:
-    #         break
-
-    # optimizer = torch.optim.SGD(
-    #     net.parameters(),
-    #     args.lr,
-    #     momentum=0.9,
-    #     weight_decay=args.weight_decay)
-
-    # def get_lr(epoch):
-    #     if epoch <= args.epochs * 1 / 3:  # 0.5:
-    #         lr = args.lr
-    #     elif epoch <= args.epochs * 2 / 3:  # 0.8:
-    #         lr = 0.1 * args.lr
-    #     elif epoch <= args.epochs * 0.8:
-    #         lr = 0.05 * args.lr
-    #     else:
-    #         lr = 0.01 * args.lr
-    #     return lr
-
-    # for epoch in range(start_epoch, args.epochs + 1):
-    #     print("Start epoch {:d}!".format(epoch))
-    #     train(train_loader, net, loss, epoch, optimizer, get_lr, args.save_freq, save_dir)
-    #     validate(val_loader, net, loss)
-
 
 def train(data_loader, net, loss, epoch, optimizer, get_lr):
     start_time = time.time()
@@ -488,13 +305,6 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
     metrics = []
 
     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
-    seq = iaa.Sequential([iaa.Fliplr(0.5),
-                          iaa.Flipud(0.5),
-                          sometimes(iaa.Rot90([1, 3])),
-                          sometimes(iaa.Affine(rotate=(-45, 45))),
-                          iaa.TranslateY(px=(-40, 40)),
-                          iaa.TranslateX(px=(-40, 40)),
-                          ])
 
     for i, (data, label, coord, target) in enumerate(tqdm(data_loader)):
         # if epoch == args.start_epoch + 1:
@@ -504,10 +314,6 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
         #             writer.add_figure("training images",
         #                               fig, global_step=i)
         s_time = time.time()
-
-
-
-
         data = Variable(torch.FloatTensor(data).cuda(async=True))
         label = Variable(torch.FloatTensor(label).cuda(async=True))
         coord = Variable(torch.FloatTensor(coord).cuda(async=True))
@@ -536,30 +342,6 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
             int(loss_output[8]), int(loss_output[9]), 100.0 * np.sum(loss_output[8]) / np.sum(loss_output[9]),
             loss_output[0], loss_output[1], loss_output[2], loss_output[3], loss_output[4], loss_output[5])
         )
-
-    # if epoch % args.save_freq == 0:
-    #     state_dict = net.module.state_dict()
-    #     for key in state_dict.keys():
-    #         state_dict[key] = state_dict[key].cpu()
-    #
-    #     # dir_checkpoint = os.path.join(save_folder, "checkpoints/")
-    #     # if average_training_loss < best_loss:
-    #     #     pt_name = dir_checkpoint + "CP_epoch{}.pth".format(epoch + 1)
-    #     #     torch.save(net.state_dict(), pt_name)
-    #     #     print("Checkpoint {} saved !".format(epoch + 1))
-    #     #     best_loss = average_training_loss
-    #     #     saved_model_list.append(pt_name)
-    #     #     if len(saved_model_list) > max_to_keep:
-    #     #         delete_model = saved_model_list.pop(0)
-    #     #         os.remove(delete_model)
-    #
-    #     checkpoint = os.path.join(save_dir, "%03d.ckpt" % epoch)
-    #     torch.save({
-    #         "epoch": epoch,
-    #         "save_dir": save_dir,
-    #         "state_dict": state_dict,
-    #         "args": args},
-    #         checkpoint)
 
     end_time = time.time()
 
@@ -780,7 +562,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
                 delete_row.append(row)
         pbb = np.delete(pbb, delete_row, 0)
 
-        tp, fp, fn, _ = acc(pbb, lbb, 4, 0.5, 0.5)
+        tp, fp, fn, _ = acc(pbb, lbb, config.CONF_TH, 0.5, 0.5)
         tps = np.array(tp)
         fps = np.array(fp)
         print("The lengths of TRUE POSITIVES and FALSE POSITIVES are: ")
@@ -789,14 +571,14 @@ def test(data_loader, net, get_pbb, save_dir, config):
         print("TP: ")
         print(tps)
         for tp_i in tps:
-            fig = stack_nodule(imgs[0], tp_i[1:5])
+            fig = stack_nodule(imgs[0], tp_i[1:5], prob=tp_i[0], show_every=1)
             writer.add_figure("TP images",
                               fig, global_step=i_name)
 
         print("FP: ")
         print(fps[:2])
         if len(fps) > 0:
-            fig = stack_nodule(imgs[0], fps[0][1:5])
+            fig = stack_nodule(imgs[0], fps[0][1:5], prob=fps[0][0], show_every=1)
             writer.add_figure("FP images",
                               fig, global_step=i_name)
 
