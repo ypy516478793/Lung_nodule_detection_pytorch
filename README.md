@@ -134,8 +134,9 @@ Go to open-source website [make sense](https://www.makesense.ai/) to annotate al
 2. ```python detect.py -d=methodistFull --test=True --gpu="2,3" --resume="../detector_ben/results/res18-20201202-112441/026.ckpt"```
 
 #### Run kfold for Methodist data
-1. Set `DATA_DIR, SAVE_DIR` arguments in `PET_aug_newMask.sh` file (in scripts folder).
-2. Run `PET_aug_newMask.sh`.
+1. Set `DATA_DIR, PET_CT, POS_LABEL_FILE = "pos_labels_norm.csv"` arguments in `methodistFull.py` file
+2. Set `DATA_DIR, SAVE_DIR` arguments in `PET_aug_newMask.sh` file (in scripts folder).
+3. Run `PET_aug_newMask.sh`.
 
 #### Arguments
 
