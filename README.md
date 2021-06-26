@@ -108,7 +108,7 @@ SAVE_DIR
 Go to open-source website [make sense](https://www.makesense.ai/) to annotate all the central slices by hand. Save the annotations as a single csv file (e.g. labels_my-project-name_2021-04-20-11-13-39.csv). Recommended to annotate the normalized data.
 
 ##### Create GT label (Change the format of annotations)
-```python convert -r={ROOT_DIR} -s={SAVE_DIR} -a={ANNOT_FILE} -n={NORMALIZE}```
+```python prepare.py convert -r={ROOT_DIR} -s={SAVE_DIR} -a={ANNOT_FILE} -n={NORMALIZE}```
 - `convert` : Task is to convert annotation from make sense output to normalized ground truth `pos_label_norm.csv`
 - `--root_dir`(`-r`): [***str***] Root directory that stores the npz data
 - `--save_dir`(`-s`): [***str***] Save directory that contains the make sense annotation file and will be used to save GT label
