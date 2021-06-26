@@ -948,7 +948,8 @@ def prepare_masked_cropped_images(root_dir, save_dir):
     print("Save all scan infos to {:s}".format(new_info_path))
     change_root_info(save_dir)
     pos_label_file = "pos_labels_norm.csv"
-    copyfile(os.path.join(root_dir, pos_label_file), os.path.join(save_dir, pos_label_file))
+    if os.path.exists(os.path.join(root_dir, pos_label_file)):
+        copyfile(os.path.join(root_dir, pos_label_file), os.path.join(save_dir, pos_label_file))
 
 def assign_PET_label(dst_dir):
 
