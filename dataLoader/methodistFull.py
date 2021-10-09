@@ -21,15 +21,16 @@ class IncidentalConfig(object):
     CROP_LUNG = True
     MASK_LUNG = True
     PET_CT = None
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
+    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/masked_croped_modeNorm"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
-    POS_LABEL_FILE = None
-    # POS_LABEL_FILE = "pos_labels_norm.csv"
+    # POS_LABEL_FILE = None
+    POS_LABEL_FILE = "pos_labels_norm.csv"
     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
     INFO_FILE = "CTinfo.npz"
@@ -440,6 +441,7 @@ class MethodistFull(Dataset):
 
     def search_info(self, path):
         for info in self.imageInfo:
+            # if info["imagePath"].strip(".") in path:
             if info["imagePath"] == path:
                 return info
         return -1
@@ -505,9 +507,9 @@ class MethodistFull(Dataset):
             imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], "constant",
                           constant_values=self.pad_value)
 
-            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing="ij")
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] // self.stride), indexing="ij")
             coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype("float32")
             imgs, nzhw = self.split_comber.split(imgs)
             coord2, nzhw2 = self.split_comber.split(coord,
@@ -593,9 +595,9 @@ class MethodistFull(Dataset):
             imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], "constant",
                           constant_values=self.pad_value)
 
-            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing="ij")
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] // self.stride), indexing="ij")
             coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype("float32")
             imgs, nzhw = self.split_comber.split(imgs)
             coord2, nzhw2 = self.split_comber.split(coord,
@@ -625,7 +627,7 @@ if __name__ == "__main__":
 
     writer = SummaryWriter(os.path.join("Visualize", "MethodistFull"))
 
-    test = True
+    test = False
     inference = False
     config = IncidentalConfig()
     config.SPLIT_SEED = 128

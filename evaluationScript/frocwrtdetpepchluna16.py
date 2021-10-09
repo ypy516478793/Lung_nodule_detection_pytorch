@@ -13,11 +13,11 @@ fold = 9
 annotations_filename = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/evaluationScript/annotations/annotations_subset9.csv" # path for ground truth annotations for the fold
 annotations_excluded_filename = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/evaluationScript/annotations/annotations_exclude_subset9.csv" # path for excluded annotations for the fold
 seriesuids_filename = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/evaluationScript/annotations/seriesuids_subset9.csv" # path for seriesuid for the fold
-results_path = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210126-170116/bbox/" #val' #val' ft96'+'/val'#
+results_path = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results_phase0/res18-20210126-170116/bbox/" #val' #val' ft96'+'/val'#
 # sideinfopath = '/media/data1/wentao/tianchi/luna16/preprocess/lunaall/'#subset'+str(fold)+'/'  +str(fold)
-sideinfopath = '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/data/preprocessed/subset9/'#subset'+str(fold)+'/'  +str(fold)
+sideinfopath = '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/LUNA16/preprocessed/subset9/'#subset'+str(fold)+'/'  +str(fold)
 # datapath = '/media/data1/wentao/tianchi/luna16/lunaall/'#subset'+str(fold)+'/'
-datapath = '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/data/raw_files/subset9/'#subset'+str(fold)+'/'
+datapath = '/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/LUNA16/raw_files/subset9/'#subset'+str(fold)+'/'
 
 # maxeps = 150 #03 #150 #100#100
 maxeps = 1 #03 #150 #100#100

@@ -11,17 +11,19 @@ import os
 
 
 class LunaConfig(object):
-    DATA_DIR = "../"
-    TRAIN_DATA_DIR = ['LUNA16/preprocessed/subset0/',
-                      'LUNA16/preprocessed/subset1/',
-                      'LUNA16/preprocessed/subset2/',
-                      'LUNA16/preprocessed/subset3/',
-                      'LUNA16/preprocessed/subset4/',
-                      'LUNA16/preprocessed/subset5/',
-                      'LUNA16/preprocessed/subset6/',
-                      'LUNA16/preprocessed/subset7/']
-    VAL_DATA_DIR = ['LUNA16/preprocessed/subset8/']
-    TEST_DATA_DIR = ['LUNA16/preprocessed/subset9/']
+    DATA_DIR = "./LUNA16/"
+    TRAIN_DATA_DIR = ['preprocessed/subset0/',
+                      'preprocessed/subset1/',
+                      'preprocessed/subset2/',
+                      'preprocessed/subset3/',
+                      'preprocessed/subset4/',
+                      'preprocessed/subset5/',
+                      'preprocessed/subset6/',
+                      'preprocessed/subset7/']
+    VAL_DATA_DIR = ['preprocessed/subset8/']
+    TEST_DATA_DIR = ['preprocessed/subset9/']
+    POS_LABEL_FILE = 'annotations.csv'
+    POS_LABEL_EXCLUDE_FILE = 'annotations_excluded.csv'
     BLACK_LIST = []
 
     ANCHORS = [5., 10., 20.]
@@ -277,9 +279,9 @@ class Luna(Dataset):
             imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], "constant",
                           constant_values=self.pad_value)
 
-            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing="ij")
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] // self.stride), indexing="ij")
             coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype("float32")
             imgs, nzhw = self.split_comber.split(imgs)
             coord2, nzhw2 = self.split_comber.split(coord,
@@ -331,9 +333,9 @@ class Luna(Dataset):
             imgs = np.pad(imgs, [[0, 0], [0, pz - nz], [0, ph - nh], [0, pw - nw]], "constant",
                           constant_values=self.pad_value)
 
-            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[2] / self.stride),
-                                     np.linspace(-0.5, 0.5, imgs.shape[3] / self.stride), indexing="ij")
+            xx, yy, zz = np.meshgrid(np.linspace(-0.5, 0.5, imgs.shape[1] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[2] // self.stride),
+                                     np.linspace(-0.5, 0.5, imgs.shape[3] // self.stride), indexing="ij")
             coord = np.concatenate([xx[np.newaxis, ...], yy[np.newaxis, ...], zz[np.newaxis, :]], 0).astype("float32")
             imgs, nzhw = self.split_comber.split(imgs)
             coord2, nzhw2 = self.split_comber.split(coord,
@@ -364,7 +366,7 @@ if __name__ == "__main__":
     writer = SummaryWriter(os.path.join("Visualize", "lunaRaw"))
 
     config = LunaConfig()
-    dataset = Luna(config, subset="test")
+    dataset = Luna(config, subset="train")
 
     # inference_loader = DataLoader(
     #     dataset,
@@ -377,26 +379,26 @@ if __name__ == "__main__":
     # iterator = iter(inference_loader)
     # cropped_sample, target, coord, nzhw, sample, info = next(iterator)
 
-    test_loader = DataLoader(
-        dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        collate_fn=collate,
-        pin_memory=False)
-
-    iterator = iter(test_loader)
-    cropped_sample, target, coord, nzhw, sample = next(iterator)
-
-    # train_loader = DataLoader(
+    # test_loader = DataLoader(
     #     dataset,
-    #     batch_size=2,
-    #     shuffle=True,
+    #     batch_size=1,
+    #     shuffle=False,
     #     num_workers=0,
-    #     pin_memory=True)
+    #     collate_fn=collate,
+    #     pin_memory=False)
     #
-    # iterator = iter(train_loader)
-    # sample, label, coord, target = next(iterator)
+    # iterator = iter(test_loader)
+    # cropped_sample, target, coord, nzhw, sample = next(iterator)
+
+    train_loader = DataLoader(
+        dataset,
+        batch_size=2,
+        shuffle=True,
+        num_workers=0,
+        pin_memory=True)
+
+    iterator = iter(train_loader)
+    sample, label, coord, target = next(iterator)
     from detector_ben.utils import stack_nodule
 
     fig = stack_nodule(sample[0][0], target[0][0])

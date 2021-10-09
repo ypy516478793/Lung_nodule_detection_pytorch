@@ -1,5 +1,6 @@
 from matplotlib.ticker import FixedFormatter
-from NoduleFinding import NoduleFinding
+from evaluate_ben.NoduleFinding import NoduleFinding
+from detector_ben.utils import Logger
 from tqdm import tqdm
 import sklearn.metrics as skl_metrics
 import matplotlib.pyplot as plt
@@ -7,6 +8,7 @@ import pandas as pd
 import numpy as np
 import argparse
 import csv
+import sys
 
 import os
 # import matplotlib as mpl
@@ -25,8 +27,10 @@ CADProbability_label = 'probability'
 FROC_minX = 0.125  # Mininum value of x-axis of FROC curve
 FROC_maxX = 8  # Maximum value of x-axis of FROC curve
 bLogPlot = True
-
-
+bPerformBootstrapping = False
+bNumberOfBootstrapSamples = 1000
+bOtherNodulesAsIrrelevant = False   # if True, not consider many nodules as False positives
+bConfidence = 0.95
 
 
 def iou(box0, box1):
@@ -60,7 +64,50 @@ def nms(output, nms_th):
     bboxes = np.asarray(bboxes, np.float32)
     return bboxes
 
-def convertcsv(bboxfname, result_dir, detp):
+def VoxelToWorldCoord(voxelCoord, origin, spacing):
+    strechedVocelCoord = voxelCoord * spacing
+    worldCoord = strechedVocelCoord + origin
+    return worldCoord
+
+def convertcsv_luna(bboxfname, result_dir, detp):
+    # sliceim,origin,spacing,isflip = load_itk_image(datapath+bboxfname[:-8]+'.mhd')
+    data_dir = os.path.join(config.DATA_DIR, config.TEST_DATA_DIR[0])
+    origin = np.load(data_dir+bboxfname[:-8]+'_origin.npy', mmap_mode='r')
+    spacing = np.load(data_dir+bboxfname[:-8]+'_spacing.npy', mmap_mode='r')
+    resolution = np.array([1, 1, 1])
+    extendbox = np.load(data_dir+bboxfname[:-8]+'_extendbox.npy', mmap_mode='r')
+    pbb = np.load(result_dir+bboxfname, mmap_mode='r')
+
+    pbbold = np.array(pbb[pbb[:,0] > detp])
+    pbbold = np.array(pbbold[pbbold[:,-1] > 3])  # add new 9 15
+    # print(pbbold.shape)
+    # pbb = np.array(pbb[:K, :4])
+    # print pbbold.shape1
+    # if use_softnms:
+    #     keep = cpu_soft_nms(pbbold, method=2) # 1 for linear weighting, 2 for gaussian weighting
+    #     pbb = np.array(pbbold[keep]) #cpu_soft_nms(pbbold)
+    # else:
+    pbb = nms(pbbold, nmsthresh)
+    # print len(pbb), pbb[0]
+    # print bboxfname, pbbold.shape, pbb.shape, pbbold.shape
+    # pbb = np.array(pbb[:, :-1])
+    # print pbb[:, 0]
+    pbb[:, 1:-1] = np.array(pbb[:, 1:-1] + np.expand_dims(extendbox[:,0], 1).T)
+    pbb[:, 1:-1] = np.array(pbb[:, 1:-1] * np.expand_dims(resolution, 1).T / np.expand_dims(spacing, 1).T)
+    pbb[:, -1] = pbb[:, -1] * resolution[1] / spacing[1]
+    # if isflip:
+    #     Mask = np.load(sideinfopath+bboxfname[:-8]+'_mask.npy', mmap_mode='r')
+    #     pbb[:, 2] = Mask.shape[1] - pbb[:, 2]
+    #     pbb[:, 3] = Mask.shape[2] - pbb[:, 3]
+    pos = VoxelToWorldCoord(pbb[:, 1:-1], origin, spacing)
+    rowlist = []
+    # print pos.shape
+    for nk in range(pbb.shape[0]): # pos[nk, 2], pos[nk, 1], pos[nk, 0]
+        rowlist.append([bboxfname[:-8], pos[nk, 2], pos[nk, 1], pos[nk, 0], pbb[nk, 4], 1/(1+np.exp(-pbb[nk,0]))])
+    # print len(rowlist), len(rowlist[0])
+    return rowlist#bboxfname[:-8], pos[:K, 2], pos[:K, 1], pos[:K, 0], 1/(1+np.exp(-pbb[:K,0]))
+
+def convertcsv_methodist(bboxfname, result_dir, detp):
     # sliceim,origin,spacing,isflip = load_itk_image(datapath+bboxfname[:-8]+'.mhd')
     # origin = np.load(sideinfopath+bboxfname[:-8]+'_origin.npy', mmap_mode='r')
     # spacing = np.load(sideinfopath+bboxfname[:-8]+'_spacing.npy', mmap_mode='r')
@@ -563,58 +610,66 @@ def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
     label[3] = label[3] * resize_factor[1]
     return label
 
-def collect(seriesuids_path):
+def collect():
     # annotations = csvTools.readCSV(annotations_filename)
     # annotations_excluded = csvTools.readCSV(annotations_excluded_filename)
     # seriesUIDs_csv = csvTools.readCSV(seriesuids_filename)
 
-    pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
-    imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
-
-    patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
-                     for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
+    seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")
+    seriesUIDs = np.load(seriesuids_path).tolist()
 
     header = [seriesuid_label, coordX_label, coordY_label, coordZ_label, diameter_mm_label]
 
-    seriesUIDs = np.load(seriesuids_path).tolist()
     annotations_excluded = [header]
     annotations = [header]
-    for seriesuid in seriesUIDs:
 
-        imageId = patient2Image[seriesuid]
-        pstr = imageInfo[imageId]["pstr"]
-        dstr = imageInfo[imageId]["date"]
-        thickness = imageInfo[imageId]["sliceThickness"]
-        spacing = imageInfo[imageId]["pixelSpacing"]
-        existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
-        pos = pos_df[existId]
-        temp0 = pos[["x", "y", "z", "d"]].values
+    if datasource == "methodistFull":
+        data_dir = config.DATA_DIR
+        pos_label_file = config.POS_LABEL_FILE
+        info_file = config.INFO_FILE
+        pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+        imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
 
-        if pos_label_file != "pos_labels_norm.csv":
-            temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
-        # pos = pos[:, [2, 1, 0, 3]]
-        if CROP:
-            extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
-            ll = np.copy(temp0[:, [2, 1, 0, 3]]).T
-            ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
-            temp0 = ll[:4].T
-            temp0 = temp0[:, [2, 1, 0, 3]]
-        for temp1 in temp0:
-            annotations.append([seriesuid] + temp1.tolist())
+        patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
+                         for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
+        for seriesuid in seriesUIDs:
+
+            imageId = patient2Image[seriesuid]
+            pstr = imageInfo[imageId]["pstr"]
+            dstr = imageInfo[imageId]["date"]
+            thickness = imageInfo[imageId]["sliceThickness"]
+            spacing = imageInfo[imageId]["pixelSpacing"]
+            existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+            pos = pos_df[existId]
+            temp0 = pos[["x", "y", "z", "d"]].values
+
+            if pos_label_file != "pos_labels_norm.csv":
+                temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
+            # pos = pos[:, [2, 1, 0, 3]]
+            if config.CROP_LUNG:
+                extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
+                ll = np.copy(temp0[:, [2, 1, 0, 3]]).T
+                ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+                temp0 = ll[:4].T
+                temp0 = temp0[:, [2, 1, 0, 3]]
+            for temp1 in temp0:
+                annotations.append([seriesuid] + temp1.tolist())
+    elif datasource == "luna":
+        label_path = os.path.join(config.DATA_DIR, config.POS_LABEL_FILE)
+        label_exclude_path = os.path.join(config.DATA_DIR, config.POS_LABEL_EXCLUDE_FILE)
+        annotations = annotations + pd.read_csv(label_path).values.tolist()
+        annotations_excluded = annotations_excluded + pd.read_csv(label_exclude_path).values.tolist()
+    else:
+        raise ValueError("Unknown datasource {:s}".format(datasource))
 
     allNodules = collectNoduleAnnotations(annotations, annotations_excluded, seriesUIDs)
 
     return (allNodules, seriesUIDs)
 
-def noduleCADEvaluation(seriesuids_path):
+def noduleCADEvaluation():
 
 
-    (allNodules, seriesUIDs) = collect(seriesuids_path)
-
-    bPerformBootstrapping = False
-    bNumberOfBootstrapSamples = 1000
-    bConfidence = 0.95
-
+    (allNodules, seriesUIDs) = collect()
 
     evaluateCAD(seriesUIDs, results_path, outputDir, allNodules,
                 os.path.splitext(os.path.basename(results_path))[0],
@@ -626,27 +681,42 @@ if __name__ == '__main__':
     # list_int_parser = lambda x: [int(i) for i in x.strip("[]").split(",")] if x else []
     list_float_parser = lambda x: [float(i) for i in x.strip("[]").split(",")] if x else []
     parser = argparse.ArgumentParser(description="evaluation script")
+    parser.add_argument("--datasource", "-d", type=str, default="luna",
+                        help="luna, lunaRaw, methoidstPilot, methodistFull, additional")
     parser.add_argument('--detp', type=list_float_parser, help='detect probability threshold', default="[0]")
     parser.add_argument('--nmsthresh', type=list_float_parser, help='nms threshold', default="[0.1]")
     parser.add_argument('--iouthresh', type=float, help='iou threshold', default=None)
     parser.add_argument("--crop", default=True, type=eval, help="crop lung")
     parser.add_argument('--result_dir', type=str, help='result directory', 
                         default="../detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/")
-    parser.add_argument('--data_dir', type=str, help='data file directory', 
-                        default="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/")
+    # parser.add_argument('--data_dir', type=str, help='data file directory',
+    #                     default="/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/")
     parser.add_argument('--extra_str', type=str, help='extra string for data', default="masked_cropped")
     parser.add_argument('--kfold', type=int, help='kfold split', default=None)
 
     args = parser.parse_args()
+
+    datasource = args.datasource
+
+    if datasource == "lunaRaw":
+        from dataLoader.lunaRaw import LunaRaw, LunaConfig
+        config = LunaConfig()
+        convertcsv = convertcsv_luna
+    elif datasource == "luna":
+        from dataLoader.luna import Luna, LunaConfig
+        config = LunaConfig()
+        convertcsv = convertcsv_luna
+    elif datasource == "methodistFull":
+        from dataLoader.methodistFull import MethodistFull, IncidentalConfig
+        config = IncidentalConfig()
+        convertcsv = convertcsv_methodist
 
     detp = args.detp
     nmsthresh = args.nmsthresh
     iouthresh = args.iouthresh
     result_dir = args.result_dir
     extra_str = args.extra_str
-    CROP = args.crop
-    # iouthresh = None
-    # iouthresh = None
+
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/"   ## fine-tuned on methodist data
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/"    ## trained on lunaRaw
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector/results/res18-20210126-011543"    ## trained on luna (pretrained)
@@ -656,18 +726,27 @@ if __name__ == '__main__':
     # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001/"    ## trained on masked methodist data, test on same data
 
     outputDir = result_dir
+
     getcsv(detp, nmsthresh, extra_str)
 
 
     # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
     # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
     # data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_kim/masked_with_crop/"
-    data_dir = args.data_dir
-    # pos_label_file = "pos_labels.csv"
-    pos_label_file = "pos_labels_norm.csv"
-    info_file = "CTinfo.npz"
 
-    seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")
+    os.makedirs(result_dir, exist_ok=True)
+    logfile = os.path.join(result_dir, "log")
+    sys.stdout = Logger(logfile)
+    print("=" * 100)
+    print("Start evaluation")
+    config.display()
+
+    # data_dir = args.data_dir
+    # pos_label_file = "pos_labels.csv"
+    # pos_label_file = "pos_labels_norm.csv"
+    # info_file = "CTinfo.npz"
+
+    # seriesuids_path = os.path.join(result_dir, "bbox/namelist.npy")
     # result_file = "luna_IOU0.2_detp0_nms0.1.csv"
     # result_file = "masked_cropped_detp0_nms0.1.csv"
     for nmsth in nmsthresh:
@@ -675,6 +754,4 @@ if __name__ == '__main__':
             print('detp', detpthresh, "nmsth", nmsth)
             result_file = "{:s}_detp{:s}_nms{:s}.csv".format(extra_str, str(detpthresh), str(nmsth))
             results_path = os.path.join(result_dir, "bbox", result_file)
-            noduleCADEvaluation(seriesuids_path)
-
-            print("")
+            noduleCADEvaluation()

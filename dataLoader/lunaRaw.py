@@ -11,16 +11,16 @@ import os
 
 class LunaConfig(object):
     DATA_DIR = "../"
-    TRAIN_DATA_DIR = ['data/raw_npz/subset0/',
-                      'data/raw_npz/subset1/',
-                      'data/raw_npz/subset2/',
-                      'data/raw_npz/subset3/',
-                      'data/raw_npz/subset4/',
-                      'data/raw_npz/subset5/',
-                      'data/raw_npz/subset6/',
-                      'data/raw_npz/subset7/']
-    VAL_DATA_DIR = ['data/raw_npz/subset8/']
-    TEST_DATA_DIR = ['data/raw_npz/subset9/']
+    TRAIN_DATA_DIR = ['LUNA16/raw_npz/subset0/',
+                      'LUNA16/raw_npz/subset1/',
+                      'LUNA16/raw_npz/subset2/',
+                      'LUNA16/raw_npz/subset3/',
+                      'LUNA16/raw_npz/subset4/',
+                      'LUNA16/raw_npz/subset5/',
+                      'LUNA16/raw_npz/subset6/',
+                      'LUNA16/raw_npz/subset7/']
+    VAL_DATA_DIR = ['LUNA16/raw_npz/subset8/']
+    TEST_DATA_DIR = ['LUNA16/raw_npz/subset9/']
     BLACK_LIST = []
 
 
