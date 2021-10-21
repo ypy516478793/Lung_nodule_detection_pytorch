@@ -43,7 +43,7 @@ while line:
 fid.close()
 # read luna16 annotation
 colname = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm']
-lunaantframe = pd.read_csv('annotations.csv', names=colname)
+lunaantframe = pd.read_csv('../../LUNA16/annotations.csv', names=colname)
 srslist = lunaantframe.seriesuid.tolist()[1:]
 cdxlist = lunaantframe.coordX.tolist()[1:]
 cdylist = lunaantframe.coordY.tolist()[1:]
@@ -60,7 +60,7 @@ for idx in range(len(srslist)):
 from multiprocessing import Pool
 lunantdictlidc = {}
 for fold in range(10):
-	mhdpath = '/media/data1/wentao/tianchi/luna16/subset'+str(fold)
+	mhdpath = '../../LUNA16/raw_files/subset'+str(fold)
 	print('fold', fold)
 	def getvoxcrd(fname):
 		sliceim,origin,spacing,isflip = load_itk_image(os.path.join(mhdpath, fname))

@@ -1,2 +1,13 @@
 .idea/
 detector_ben/results/
+DeepLungDetectionDemo/
+Methodist_incidental/
+LUNA16/
+dataLoader/reports
+detector_ben/click.py
+evaluate_ben/limit1_5fold/
+dataLoader/.DS_Store
+detector_ben/.DS_Store
+evaluate_ben/.DS_Store
+nodcls/.DS_Store
+utils/.ipynb_checkpoints/

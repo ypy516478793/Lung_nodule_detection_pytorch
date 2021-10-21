@@ -21,11 +21,6 @@ Low-dose LUNA16 trained model:
 import sys
 sys.path.append("../")
 
-import os
-import matplotlib as mpl
-if os.environ.get('DISPLAY','') == '':
-    print('no display found. Using non-interactive Agg backend')
-    mpl.use('Agg')
 
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
@@ -34,7 +29,7 @@ from copy import deepcopy
 from tqdm import tqdm
 
 import imgaug.augmenters as iaa
-import nibabel as nib
+# import nibabel as nib
 import numpy as np
 import argparse
 import torch
@@ -44,6 +39,8 @@ import time
 parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
 parser.add_argument("--datasource", "-d", type=str, default="luna",
                     help="luna, lunaRaw, methoidstPilot, methodistFull, additional")
+parser.add_argument("--data_dir", "-p", default=None, help="Data directory")
+parser.add_argument("--pad_value", "-pv", default=None, help="Pad value for patching")
 parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
 parser.add_argument("-j", "--workers", default=0, type=int, metavar="N",
                     help="number of data loading workers (default: 32)")
@@ -63,7 +60,8 @@ parser.add_argument("--weight-decay", "--wd", default=1e-4, type=float,
                     metavar="W", help="weight decay (default: 1e-4)")
 parser.add_argument("--save-freq", default="1", type=int, metavar="S",
                     help="save frequency")
-parser.add_argument("--resume", "-re", default="../detector/resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
+parser.add_argument("--resume", "-re", default=None, type=str, metavar="PATH",
+# parser.add_argument("--resume", "-re", default="../detector/resmodel/res18fd9020.ckpt", type=str, metavar="PATH",
 # parser.add_argument("--resume", default="../detector/results/res18-20201020-113114/030.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201202-112441/026.ckpt",
 # parser.add_argument("--resume", default="../detector_ben/results/res18-20201223-115306/038.ckpt",
@@ -106,6 +104,7 @@ parser.add_argument("--n_test", default=1, type=int, metavar="N",
                     help="number of gpu for test")
 parser.add_argument("--train_patience", type=int, default=10,
                     help="If the validation loss does not decrease for this number of epochs, stop training")
+parser.add_argument("--save_interval", type=int, default=10, help="save interval for pytorch model")
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"]= args.gpu
 
@@ -114,6 +113,12 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.nn import DataParallel
 
+def merge_args(config, args):
+    if args.data_dir is not None:
+        config.DATA_DIR = args.data_dir
+    if args.pad_value is not None:
+        config.PAD_VALUE = args.pad_value
+    return config
 
 def main():
     ## Set gpu resources
@@ -150,6 +155,8 @@ def main():
         config.SPLIT_ID = args.split_id
         Dataset = MethodistFull
 
+    config = merge_args(config, args)
+
     ## Specify the save directory
     save_dir = args.save_dir
     if not save_dir:
@@ -158,9 +165,9 @@ def main():
             mode_str = "inference"
         else:
             mode_str = "test" if args.test else "train"
-        save_dir = os.path.join("results", args.model + "-" + exp_id + "-" + mode_str)
+        save_dir = os.path.join("detector_ben/results", args.model + "-" + exp_id + "-" + mode_str)
     else:
-        save_dir = os.path.join("results", save_dir)
+        save_dir = os.path.join("detector_ben/results", save_dir) # run exp from project root directory!!!
 
     # if not args.test:
     #     if os.path.exists(save_dir):
@@ -290,8 +297,8 @@ def main():
         patience_train = 0
         for epoch in range(start_epoch, args.epochs + 1):
             print("Start epoch {:d}!".format(epoch))
-            train(train_loader, net, loss, epoch, optimizer, get_lr)
-            best_loss, patience_train = validate(val_loader, net, loss, epoch, save_dir, best_loss, patience_train)
+            net = train(train_loader, net, loss, epoch, optimizer, get_lr)
+            best_loss, patience_train = validate(val_loader, net, loss, epoch, save_dir, best_loss, patience_train, args.save_interval)
 
 
 def train(data_loader, net, loss, epoch, optimizer, get_lr):
@@ -304,7 +311,7 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
 
     metrics = []
 
-    sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+    # sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
     for i, (data, label, coord, target) in enumerate(tqdm(data_loader)):
         # if epoch == args.start_epoch + 1:
@@ -370,8 +377,10 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr):
     writer.add_scalar('Train/classify loss', np.mean(metrics[:, 1]), epoch)
     writer.add_scalar('Train/regress loss', np.mean(metrics[:, 2]), epoch)
 
+    return net
 
-def validate(data_loader, net, loss, epoch, save_dir, best_loss, patience_train):
+
+def validate(data_loader, net, loss, epoch, save_dir, best_loss, patience_train, save_interval):
     start_time = time.time()
 
     net.eval()
@@ -421,13 +430,26 @@ def validate(data_loader, net, loss, epoch, save_dir, best_loss, patience_train)
     writer.add_scalar('Val/classify loss', np.mean(metrics[:, 1]), epoch)
     writer.add_scalar('Val/regress loss', np.mean(metrics[:, 2]), epoch)
 
+    if epoch % save_interval == 0:
+        state_dict = net.module.state_dict()
+        for key in state_dict.keys():
+            state_dict[key] = state_dict[key].cpu()
+
+        checkpoint = os.path.join(save_dir, "%03d.ckpt" % epoch)
+        torch.save({
+            "epoch": epoch,
+            "save_dir": save_dir,
+            "state_dict": state_dict,
+            "args": args},
+            checkpoint)
+
     loss_mean = np.mean(metrics[:, 0])
     if loss_mean < best_loss:
         state_dict = net.module.state_dict()
         for key in state_dict.keys():
             state_dict[key] = state_dict[key].cpu()
 
-        checkpoint = os.path.join(save_dir, "%03d.ckpt" % epoch)
+        checkpoint = os.path.join(save_dir, "best_%03d.ckpt" % epoch)
         torch.save({
             "epoch": epoch,
             "save_dir": save_dir,

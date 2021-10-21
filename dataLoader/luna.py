@@ -2,7 +2,9 @@ from sklearn.model_selection import train_test_split
 from scipy.ndimage.interpolation import rotate
 from dataLoader.dataBase import LabelMapping, Crop, collate
 from dataLoader.splitCombine import SplitComb
+from dataLoader.lunaConfig import LunaConfig
 from torch.utils.data import Dataset
+from prepare import lumTrans
 import pandas as pd
 import numpy as np
 import torch
@@ -10,82 +12,7 @@ import time
 import os
 
 
-class LunaConfig(object):
-    DATA_DIR = "./LUNA16/"
-    TRAIN_DATA_DIR = ['preprocessed/subset0/',
-                      'preprocessed/subset1/',
-                      'preprocessed/subset2/',
-                      'preprocessed/subset3/',
-                      'preprocessed/subset4/',
-                      'preprocessed/subset5/',
-                      'preprocessed/subset6/',
-                      'preprocessed/subset7/']
-    VAL_DATA_DIR = ['preprocessed/subset8/']
-    TEST_DATA_DIR = ['preprocessed/subset9/']
-    POS_LABEL_FILE = 'annotations.csv'
-    POS_LABEL_EXCLUDE_FILE = 'annotations_excluded.csv'
-    BLACK_LIST = []
-
-    ANCHORS = [5., 10., 20.]
-    # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
-    CHANNEL = 1
-    CROP_SIZE = [96, 96, 96]
-    STRIDE = 4
-    MAX_STRIDE = 16
-    NUM_NEG = 800
-    TH_NEG = 0.02
-    TH_POS_TRAIN = 0.5
-    TH_POS_VAL = 1
-    NUM_HARD = 2
-    BOUND_SIZE = 12
-    RESO = 1
-    SIZE_LIM = 2.5  # 3 #6. #mm
-    SIZE_LIM2 = 10  # 30
-    SIZE_LIM3 = 20  # 40
-    AUG_SCALE = True
-    R_RAND_CROP = 0.3
-    PAD_VALUE = 170  # previous 170
-    AUGTYPE = {"flip": True, "swap": False, "scale": True, "rotate": False}
-
-    CONF_TH = 4
-    NMS_TH = 0.3
-    DETECT_TH = 0.5
-
-    SIDE_LEN = 144
-    MARGIN = 32
-
-    ORIGIN_SCALE = False
-
-    def display(self):
-        """Display Configuration values."""
-        print("\nConfigurations:")
-        for a in dir(self):
-            if not a.startswith("__") and not callable(getattr(self, a)):
-                print("{:30} {}".format(a, getattr(self, a)))
-        print("\n")
-
-
-def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
-    spacing = map(float, ([thickness] + list(spacing)))
-    spacing = np.array(list(spacing))
-    resize_factor = spacing / new_spacing
-    # resize_factor = resize_factor[::-1]
-    label[:3] = np.round(label[:3] * resize_factor)
-    label[3] = label[3] * resize_factor[1]
-    return label
-
-
-def lumTrans(img):
-    lungwin = np.array([-1200., 600.])
-    newimg = (img - lungwin[0]) / (lungwin[1] - lungwin[0])
-    newimg[newimg < 0] = 0
-    newimg[newimg > 1] = 1
-    newimg = (newimg * 255).astype("uint8")
-    return newimg
-
-
 def augment(sample, target, bboxes, coord, ifflip=True, ifrotate=True, ifswap=True):
-    #                     angle1 = np.random.rand()*180
     if ifrotate:
         validrot = False
         counter = 0
@@ -133,7 +60,7 @@ class Luna(Dataset):
         assert (subset == 'train' or subset == 'val' or subset == 'test' or subset == "inference")
         self.config = config
         self.subset = subset
-        self.data_dir = data_dir = config.DATA_DIR
+        self.data_dir = config.DATA_DIR
         self.train_data_dir = config.TRAIN_DATA_DIR
         self.val_data_dir = config.VAL_DATA_DIR
         self.test_data_dir = config.TEST_DATA_DIR
@@ -148,64 +75,6 @@ class Luna(Dataset):
         self.label_mapping = LabelMapping(config, subset)
         self.load_subset(subset)
 
-        #
-        #
-        # self.max_stride = config['max_stride']
-        # self.stride = config['stride']
-        # sizelim = config['sizelim'] / config['reso']
-        # sizelim2 = config['sizelim2'] / config['reso']
-        # sizelim3 = config['sizelim3'] / config['reso']
-        # self.blacklist = config['blacklist']
-        # self.isScale = config['aug_scale']
-        # self.r_rand = config['r_rand_crop']
-        # self.augtype = config['augtype']
-        # self.pad_value = config['pad_value']
-        # self.split_comber = split_comber
-        # idcs = split_path  # np.load(split_path)
-        # if subset != 'test':
-        #     idcs = [f for f in idcs if (f not in self.blacklist)]
-        #
-        # self.filenames = [os.path.join(data_dir, '%s_clean.npy' % idx) for idx in idcs]
-        # # print self.filenames
-        # self.kagglenames = [f for f in self.filenames]  # if len(f.split('/')[-1].split('_')[0])>20]
-        # # self.lunanames = [f for f in self.filenames if len(f.split('/')[-1].split('_')[0])<20]
-        # labels = []
-        #
-        #
-        #
-        #
-        #
-        #
-        # assert (subset == "train" or subset == "val" or subset == "test" or subset == "inference")
-        # self.config = config
-        # self.subset = subset
-        # # self.max_stride = LunaConfig.MAX_STRIDE
-        # # self.stride = config["stride"]
-        # # sizelim = config["sizelim"] / config["reso"]
-        # # sizelim2 = config["sizelim2"] / config["reso"]
-        # # sizelim3 = config["sizelim3"] / config["reso"]
-        # # self.blacklist = config["blacklist"]
-        # # self.isScale = config["aug_scale"]
-        # # self.r_rand = config["r_rand_crop"]
-        # # self.augtype = config["augtype"]
-        # # self.pad_value = config["pad_value"]  # may need to change to 0
-        # self.data_dir = data_dir = config.DATA_DIR
-        # info_file = config.INFO_FILE
-        # pos_label_file = config.POS_LABEL_FILE
-        # self.augtype = config.AUGTYPE
-        # self.stride = config.STRIDE
-        # self.pad_value = config.PAD_VALUE
-        # self.r_rand = config.R_RAND_CROP
-        # self.split_comber = SplitComb(config.SIDE_LEN, config.MAX_STRIDE, config.STRIDE,
-        #                               config.MARGIN, config.PAD_VALUE)
-        # self.imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
-        # if pos_label_file is not None:
-        #     self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
-        # self.blacklist = []
-        # self.crop = Crop(config)
-        # self.label_mapping = LabelMapping(config, subset)
-        # self.load_subset(subset)
-
     def load_subset(self, subset):
 
         fileList = []
@@ -219,8 +88,8 @@ class Luna(Dataset):
 
         for folder in data_dir:
             for f in os.listdir(os.path.join(self.data_dir, folder)):
-                if f.endswith('_clean.npy') and f.strip("_clean.npy") not in self.blacklist:
-                    fileList.append(folder + '/' + f.strip("_clean.npy"))
+                if f.endswith('_clean.npy') and f.rstrip("_clean.npy") not in self.blacklist:
+                    fileList.append(folder + '/' + f.rstrip("_clean.npy"))
 
         self.filenames = [os.path.join(self.data_dir, "{:s}_clean.npy".format(idx)) for idx in fileList]
         # self.filenames = [os.path.join(self.data_dir, f) for f in fileList]

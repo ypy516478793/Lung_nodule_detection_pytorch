@@ -1,6 +1,7 @@
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 def iou(box0, box1):
     r0 = box0[3] / 2
@@ -32,7 +33,7 @@ def nms(output, nms_th):
 
 def add_bbox(ax, images, pred, label=None):
     if len(images.shape) == 2:
-        ax.imshow(images, cmap="gray")
+        im = ax.imshow(images, cmap="gray")
         if label is not None and pred is not None:
             yp, xp, dp = pred
             yl, xl, dl = label
@@ -59,7 +60,7 @@ def add_bbox(ax, images, pred, label=None):
         if label is not None and pred is not None:
             zp, yp, xp, dp = pred
             zl, yl, xl, dl = label
-            ax.imshow(images[int(zl)], cmap="gray")
+            im = ax.imshow(images[int(zl)], cmap="gray")
             rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
                                            facecolor='none')
             ax.add_patch(rect_label)
@@ -69,18 +70,19 @@ def add_bbox(ax, images, pred, label=None):
                 ax.add_patch(rect_pred)
         elif label is not None:
             zl, yl, xl, dl = label
-            ax.imshow(images[int(zl)], cmap="gray")
+            im = ax.imshow(images[int(zl)], cmap="gray")
             rect_label = patches.Rectangle((xl - dl / 2, yl - dl / 2), dl, dl, linewidth=1, edgecolor='g',
                                            facecolor='none')
             ax.add_patch(rect_label)
         elif pred is not None:
             zp, yp, xp, dp = pred
-            ax.imshow(images[int(zp)], cmap="gray")
+            im = ax.imshow(images[int(zp)], cmap="gray")
             rect_pred = patches.Rectangle((xp - dp / 2, yp - dp / 2), dp, dp, linewidth=1, edgecolor='r',
                                           facecolor='none')
             ax.add_patch(rect_pred)
         else:
             print("no prediction or label is given!")
+    return im
 
 def plot_bbox(savedir, images, pred, label=None, show=True, title=None):
     '''
@@ -91,7 +93,8 @@ def plot_bbox(savedir, images, pred, label=None, show=True, title=None):
     :return: None
     '''
     fig, ax = plt.subplots(1)
-    add_bbox(ax, images, pred, label)
+    im = add_bbox(ax, images, pred, label)
+    fig.colorbar(im)
     if title:
         plt.title(title)
     if show:
@@ -99,6 +102,19 @@ def plot_bbox(savedir, images, pred, label=None, show=True, title=None):
     else:
         plt.savefig(savedir + "_bbox.png")
         plt.close()
+
+def plot_luna_raw(data_path):
+    '''
+    data_path: endswith .mhd
+    '''
+    from prepare import load_itk_image, resample
+    sliceim, origin, spacing, isflip = load_itk_image(data_path)
+    resolution = np.array([1, 1, 1])
+    if isflip:
+        sliceim = sliceim[:, ::-1, ::-1]
+        print('flip!')
+    sliceim1, _ = resample(sliceim, spacing, resolution, order=1)
+
 
 def draw_bbox(savedir, images, pred, label=None):
     '''
@@ -109,7 +125,7 @@ def draw_bbox(savedir, images, pred, label=None):
     :return: None
     '''
     fig, ax = plt.subplots(1)
-    add_bbox(ax, images, pred, label)
+    im = add_bbox(ax, images, pred, label)
     from detector.utils import canvas2array
     fig.canvas.draw()
     data = canvas2array(fig)

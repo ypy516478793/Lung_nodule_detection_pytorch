@@ -71,7 +71,7 @@ def VoxelToWorldCoord(voxelCoord, origin, spacing):
 
 def convertcsv_luna(bboxfname, result_dir, detp):
     # sliceim,origin,spacing,isflip = load_itk_image(datapath+bboxfname[:-8]+'.mhd')
-    data_dir = os.path.join(config.DATA_DIR, config.TEST_DATA_DIR[0])
+    data_dir = os.path.join("./LUNA16/preprocessed/", config.TEST_DATA_DIR[0])
     origin = np.load(data_dir+bboxfname[:-8]+'_origin.npy', mmap_mode='r')
     spacing = np.load(data_dir+bboxfname[:-8]+'_spacing.npy', mmap_mode='r')
     resolution = np.array([1, 1, 1])
@@ -655,8 +655,8 @@ def collect():
             for temp1 in temp0:
                 annotations.append([seriesuid] + temp1.tolist())
     elif datasource == "luna":
-        label_path = os.path.join(config.DATA_DIR, config.POS_LABEL_FILE)
-        label_exclude_path = os.path.join(config.DATA_DIR, config.POS_LABEL_EXCLUDE_FILE)
+        label_path = os.path.join("./LUNA16", config.POS_LABEL_FILE)
+        label_exclude_path = os.path.join("./LUNA16", config.POS_LABEL_EXCLUDE_FILE)
         annotations = annotations + pd.read_csv(label_path).values.tolist()
         annotations_excluded = annotations_excluded + pd.read_csv(label_exclude_path).values.tolist()
     else:

@@ -1,9 +1,10 @@
 from argparse import ArgumentParser
-from prepare import lumTrans
+from prepare import lumTrans, load_itk_image, resample, worldToVoxelCoord, process_mask
 from show_results import add_bbox
 from statistics import mode
 from skimage.filters import threshold_otsu
 from collections import Counter
+from prepare_lung.preprocess_lung import mode_norm, mode_norm2, mode_norm3
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -15,16 +16,15 @@ def load_mhd(data_path, label_path=None, load_label=False):
     param:
         data_path: endswith .mhd
     return:
-         sliceim: npArray, shape == (slices, height, weight)
+         image: npArray, shape == (slices, height, weight)
          label: npArray, shape == (n, 4) -> (z, y, x, d)
     '''
-    from prepare import load_itk_image, resample, worldToVoxelCoord
-    sliceim, origin, spacing, isflip = load_itk_image(data_path)
-    ori_shape = sliceim.shape
+    image, origin, spacing, isflip = load_itk_image(data_path)
+    ori_shape = image.shape
     if isflip:
-        sliceim = sliceim[:, ::-1, ::-1]
+        image = image[:, ::-1, ::-1]
     resolution = np.array([1, 1, 1])
-    sliceim, _ = resample(sliceim, spacing, resolution, order=1)
+    image, _ = resample(image, spacing, resolution, order=1)
     filename = data_path.split("/")[-1].rstrip(".mhd")
     label = []
     if load_label:
@@ -43,50 +43,50 @@ def load_mhd(data_path, label_path=None, load_label=False):
             label = label[:4].T
     label = np.array(label)
 
-    return sliceim, label
+    return image, label
 
 def load_npy(data_path, label_path=None, load_label=False):
     '''
     param:
         data_path: endswith .npy
     return:
-         sliceim: npArray, shape == (slices, height, weight)
+         image: npArray, shape == (slices, height, weight)
          label: npArray, shape == (n, 4) -> (z, y, x, d)
     '''
-    sliceim = np.load(data_path, allow_pickle=True)
-    if len(sliceim) == 1 and len(sliceim.shape) == 4:
-        sliceim = sliceim[0]
-    dirpath = os.path.dirname(data_path)
+    image = np.load(data_path, allow_pickle=True)
+    if len(image) == 1 and len(image.shape) == 4:
+        image = image[0]
+    dirname = os.path.dirname(data_path)
     filename = data_path.split("/")[-1].rstrip("_clean.npy")
     label = []
     if load_label:
         assert label_path is None
         if label_path is None:
-            label = np.load(os.path.join(dirpath, filename + '_label.npy'), allow_pickle=True)
+            label = np.load(os.path.join(dirname, filename + '_label.npy'), allow_pickle=True)
             if np.all(label == 0):
                 label = []
     label = np.array(label)
-    return sliceim, label
+    return image, label
 
 def load_npz(data_path, label_path=None, load_label=False):
     '''
     param:
         data_path: endswith .npy
     return:
-         sliceim: npArray, shape == (slices, height, weight)
+         image: npArray, shape == (slices, height, weight)
          label: npArray, shape == (n, 4) -> (z, y, x, d)
     '''
-    sliceim = np.load(data_path, allow_pickle=True)["image"]
-    if len(sliceim) == 1 and len(sliceim.shape) == 4:
-        sliceim = sliceim[0]
+    image = np.load(data_path, allow_pickle=True)["image"]
+    if len(image) == 1 and len(image.shape) == 4:
+        image = image[0]
 
-    dirpath = os.path.dirname(data_path)
+    dirname = os.path.dirname(data_path)
     filename = data_path.split("/")[-1].rstrip("_clean.npz")
 
     label = []
     if load_label:
         if label_path is None:
-            label = np.load(os.path.join(dirpath, filename + '_label.npz'), allow_pickle=True)["label"]
+            label = np.load(os.path.join(dirname, filename + '_label.npz'), allow_pickle=True)["label"]
             if np.all(label == 0):
                 label = []
         else:
@@ -97,16 +97,8 @@ def load_npz(data_path, label_path=None, load_label=False):
             existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == int(dstr))
             label = pos_df[existId][["z", "y", "x", "d"]].values
     label = np.array(label)
-    return sliceim, label
+    return image, label
 
-def mode_norm(scan):
-    # t = threshold_otsu(scan)
-    t = -400
-    m = mode(scan[scan < t])
-    std = np.std(scan[scan < t])
-    print("Mode: {:f}, std: {:f}".format(m, std))
-    scan = (scan - m) / std
-    return scan
 
 def plot_data(args):
 
@@ -131,7 +123,9 @@ def plot_data(args):
     if args.norm == "min_max":
         scan = lumTrans(scan)
     elif args.norm == "mode_norm":
-        scan = mode_norm(scan)
+        # scan = mode_norm(scan, pad_value, verbose=True)
+        scan = mode_norm2(scan, pad_value, verbose=True)
+        # scan = mode_norm3(scan, pad_value, verbose=True)
 
     ## load label
     if load_label and nodule_index < len(label):
@@ -146,15 +140,15 @@ def plot_data(args):
         l = None
 
     ## plot data
-    fig, axes = plt.subplots(1, 4, figsize=(6.4 * 4, 4.8))
+    fig, axes = plt.subplots(2, 2, figsize=(6.4 * 2, 4.8 * 2))
     if l is not None:
-        im = add_bbox(axes[0], scan, None, l)
+        im = add_bbox(axes[0][0], scan, None, l)
     else:
-        im = axes[0].imshow(scan[z], cmap="gray")
-    axes[0].set_title("slice {:d}".format(z))
-    axes[1].hist(scan.reshape(-1), bins=100)
-    axes[1].set_title("histogram")
-    fig.colorbar(mappable=im, ax=axes[0])
+        im = axes[0][0].imshow(scan[z], cmap="gray")
+    axes[0][0].set_title("slice {:d}".format(z))
+    axes[0][1].hist(scan.reshape(-1), bins=100)
+    axes[0][1].set_title("histogram")
+    fig.colorbar(mappable=im, ax=axes[0][0])
 
 
     ## plot hist
@@ -187,10 +181,10 @@ def plot_data(args):
     #     print("remove background", counts[0])
     # bins2 = min([100, len(c)])
 
-    axes[2].hist(first_stack, bins=bins1)
-    axes[2].set_title("histogram first stack")
-    axes[3].hist(second_stack, bins=bins2)
-    axes[3].set_title("histogram second stack")
+    axes[1][0].hist(first_stack, bins=bins1)
+    axes[1][0].set_title("histogram first stack")
+    axes[1][1].hist(second_stack, bins=bins2)
+    axes[1][1].set_title("histogram second stack")
 
     plt.show()
 
@@ -204,4 +198,9 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--norm', type=str, choices=["min_max", "mode_norm"], default=None, help="options: [min_max, mode_norm]")
     args = parser.parse_args()
 
+    pad_value = -3000
     plot_data(args)
+
+
+## -------------------------- Luna block list -------------------------- ##
+# /LUNA16/preprocessed/subset2/1.3.6.1.4.1.14519.5.2.1.6279.6001.943403138251347598519939390311_clean.npy
