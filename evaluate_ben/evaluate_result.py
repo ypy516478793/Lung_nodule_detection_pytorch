@@ -29,7 +29,7 @@ FROC_maxX = 8  # Maximum value of x-axis of FROC curve
 bLogPlot = True
 bPerformBootstrapping = False
 bNumberOfBootstrapSamples = 1000
-bOtherNodulesAsIrrelevant = False   # if True, not consider many nodules as False positives
+bOtherNodulesAsIrrelevant = True   # if True, not consider many nodules as False positives
 bConfidence = 0.95
 
 
@@ -630,7 +630,7 @@ def collect():
         pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
         imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
 
-        patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
+        patient2Image = {"{:s}-{:s}".format(info['pstr'], info['date']): id
                          for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
         for seriesuid in seriesUIDs:
 

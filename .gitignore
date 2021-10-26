@@ -11,3 +11,8 @@ detector_ben/.DS_Store
 evaluate_ben/.DS_Store
 nodcls/.DS_Store
 utils/.ipynb_checkpoints/
+.DS_Store
+evaluate_ben/new_labels/
+exp.py
+note.txt
+prepare_copy.py

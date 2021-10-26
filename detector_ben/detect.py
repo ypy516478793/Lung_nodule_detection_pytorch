@@ -102,7 +102,7 @@ parser.add_argument("--split_id", default=None, type=int, help="split id when us
 
 parser.add_argument("--n_test", default=1, type=int, metavar="N",
                     help="number of gpu for test")
-parser.add_argument("--train_patience", type=int, default=10,
+parser.add_argument("--train_patience", type=int, default=20,
                     help="If the validation loss does not decrease for this number of epochs, stop training")
 parser.add_argument("--save_interval", type=int, default=10, help="save interval for pytorch model")
 args = parser.parse_args()
@@ -494,7 +494,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
         print("TARGET IS: " + str(target))
         lbb = target[0]
         nzhw = nzhw[0]
-        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].strip(".npz")   # .split("-")[0]  wentao change
+        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].rstrip(".npz")   # .split("-")[0]  wentao change
         namelist.append(name)
         data = data[0][0]
         coord = coord[0][0]
@@ -651,7 +651,7 @@ def inference(data_loader, net, get_pbb, save_dir, config):
         data1 = [np.asarray(d, np.float32) for d in data]
         print("Shape of input: " + str(np.array(data1).shape))
         nzhw = nzhw[0]
-        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].strip(".npz")  # .split("-")[0]  wentao change
+        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].rstrip(".npz")  # .split("-")[0]  wentao change
         namelist.append(name)
         print("Patient MRN-date: ", name)
 

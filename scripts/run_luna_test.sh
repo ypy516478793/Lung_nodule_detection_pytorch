@@ -2,12 +2,12 @@
 cd ../
 PYTHONPATH=$(pwd)
 
-echo ""
-echo "Start testing"
-python detector_ben/detect.py \
-    -d=luna --test=True --inference=False --gpu="4, 5" \
-    --resume=detector/resmodel/res18fd9020.ckpt \
-    --save-dir=luna_pretrainedLUNA
+#echo ""
+#echo "Start testing"
+#python detector_ben/detect.py \
+#    -d=luna --test=True --inference=False --gpu="4, 5" \
+#    --resume=detector/resmodel/res18fd9020.ckpt \
+#    --save-dir=luna_pretrainedLUNA
 
 #echo ""
 #echo "Start evaluation"

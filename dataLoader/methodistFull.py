@@ -21,7 +21,8 @@ class IncidentalConfig(object):
     CROP_LUNG = True
     MASK_LUNG = True
     PET_CT = None
-    DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
+    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
+    DATA_DIR = "./Methodist_incidental/data_Ben/modeNorm3"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/masked_croped_modeNorm"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
@@ -442,7 +443,8 @@ class MethodistFull(Dataset):
     def search_info(self, path):
         for info in self.imageInfo:
             # if info["imagePath"].strip(".") in path:
-            if info["imagePath"] == path:
+            # if info["imagePath"] == path:
+            if path.strip("./") in info["imagePath"]:
                 return info
         return -1
 

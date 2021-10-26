@@ -883,13 +883,19 @@ def change_root_info(dst_dir):
         if not os.path.exists(os.path.join(dst_dir, subPath)) and \
             not os.path.exists(os.path.join(dst_dir, subPathClean)):
             subPathList = subPath.split("/")
-            subPathList[0] = subPathList[0].rsplit("_", 1)[0]
+            subPathList[0] = subPathList[0].rsplit("-")[0]
+            patient = subPathList[0].rsplit("-")[0].split("_")[1]
+            mrn = subPathList[1].rsplit("-")[0]
+            subPathList[1] = subPathList[1].replace(mrn, patient)
+
+            # subPathList[0] = subPathList[0].rsplit("_", 1)[0]
             # if not os.path.exists(os.path.exists(os.path.join(dst_dir, "/".join(subPathList)))):
             #     subPath = subPath.replace(".npz", "_extendbox.npz")
             # # subPath = "/".join(subPathList)
             #     assert os.path.exists(os.path.join(dst_dir, subPath))
             subPath = "/".join(subPathList)
-            assert os.path.exists(os.path.join(dst_dir, subPath))
+            # assert os.path.exists(os.path.join(dst_dir, subPath))
+            assert os.path.exists(os.path.join(dst_dir, subPath.replace(".npz", "_clean.npz")))
         info["imagePath"] = os.path.join(dst_dir, subPath)
     print(infos)
 
