@@ -12,7 +12,7 @@ import numbers
 import types
 import collections
 from torch.autograd import Variable
-torch.cuda.set_device(0)
+# torch.cuda.set_device(0)
 def resample3d(inp,inp_space,out_space=(1,1,1)):
     # Infer new shape
     # inp = torch.from_numpy(inp)

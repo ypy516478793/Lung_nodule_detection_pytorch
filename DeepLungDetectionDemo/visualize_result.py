@@ -4,7 +4,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-showid = 1 # from 0 to 4
+showid = 2 # from 0 to 4
 assert showid in range(5)
 
 def lumTrans(img):
@@ -103,18 +103,33 @@ def plot_bbox(savedir, images, pred, label=None, show=True, title=None, fontsize
 
 # srslst = ["029337094-20120315",]
 # srslst = ["000192476-20160614",]
-srslst = ["005203419-20160716",
-          "102883931-20180417",
-          "040779696-20160823",
-          "007494206-20171016",
-          "000192476-20160614",
-          "001734722-20130821"]
+# srslst = ["005203419-20160716",
+#           "102883931-20180417",
+#           "040779696-20160823",
+#           "007494206-20171016",
+#           "000192476-20160614",
+#           "001734722-20130821"]
+
+# srslst = ["patient002-20090310"]
+srslst = ["patient041-20130319",
+          "patient055-20130925",
+          "patient128-20140910",
+          "patient132-20140920",
+          "patient047-20130821",
+          "patient278-20161104",
+          "patient258-20161021",
+          "patient006-20121023",
+          "patient375-20171016",
+          "patient429-20171206",
+          "patient459-20180724",
+          "patient459-20180724",]
 
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/labeled/"
 # data_dir = "/data/pyuan2/Methodist_incidental/data_kim/masked_first/"
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/masked_with_crop/"
-data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug/"
+# data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug/"
+data_dir = "./Methodist_incidental/data_Ben/modeNorm3/"
 # data_dir = "/home/cougarnet.uh.edu/pyuan2/Datasets/Methodist_incidental/data_Ben/labeled/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-225702/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210121-180624/bbox/"
@@ -130,46 +145,57 @@ data_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detec
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_0/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_augAll_5fold_0/bbox/"
 # result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects2021/Lung_nodule_detection_pytorch/detector_ben/results/worker32_batch8_kim_masked_crop_nonPET_lr001_rs42_5fold_4/bbox/"
-result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210429-200058-train/bbox/"
+# result_dir = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/detector_ben/results/res18-20210429-200058-train/bbox/"
+
+result_dir = "./detector_ben/results/methodist_finetuned_mode3/bbox/"
+# result_dir = "./detector_ben/results/methodist_pretrainedLUNA_mode3/bbox"
 show = True
 
-pos_label_file = "pos_labels_norm.csv"
-info_file = "CTinfo.npz"
-pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
-imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
+# pos_label_file = "pos_labels_norm.csv"
+# info_file = "CTinfo.npz"
+# pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+# imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
+#
+# patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
+#                  for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
+# imageId = patient2Image[srslst[showid]]
+# filename = imageInfo[imageId]["imagePath"]
+# pstr = imageInfo[imageId]["pstr"]
+# dstr = imageInfo[imageId]["date"]
+# thickness = imageInfo[imageId]["sliceThickness"]
+# spacing = imageInfo[imageId]["pixelSpacing"]
+# existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+# pos = pos_df[existId]
+# temp = pos[["x", "y", "z", "d"]].values
+# # temp[:, 2] = temp[:, 2] - 1
+# # temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
+# ctlab = temp[:, [2, 1, 0, 3]]
+# # ctlab[:, 0] = ctlab[:, 0] - 1
+#
+# try:
+#     imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
+# except Exception:
+#     imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+#     extendbox = np.load(filename.replace(".npz", "_extendbox.npz"))["extendbox"]
+#
+#     if len(ctlab) == 0:
+#         ctlab = np.array([[0, 0, 0, 0]])
+#     else:
+#         ll = np.copy(ctlab).T
+#         # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
+#         # label2[3] = label2[3] * spacing[1] / resolution[1]
+#         ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+#         ctlab = ll[:4].T
+# # ctdat = lumTrans(imgs)
+# ctdat = imgs
 
-patient2Image = {"{:s}-{:s}".format(info['patientID'], info['date']): id
-                 for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
-imageId = patient2Image[srslst[showid]]
-filename = imageInfo[imageId]["imagePath"]
-pstr = imageInfo[imageId]["pstr"]
-dstr = imageInfo[imageId]["date"]
-thickness = imageInfo[imageId]["sliceThickness"]
-spacing = imageInfo[imageId]["pixelSpacing"]
-existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
-pos = pos_df[existId]
-temp = pos[["x", "y", "z", "d"]].values
-# temp[:, 2] = temp[:, 2] - 1
-# temp = np.array([resample_pos(p, thickness, spacing) for p in temp])
-ctlab = temp[:, [2, 1, 0, 3]]
-# ctlab[:, 0] = ctlab[:, 0] - 1
+srsid = srslst[showid]
+pid, date = srsid.split("-")
+filepath = os.path.join(data_dir, "Lung_{:s}/{:s}_clean.npz".format(pid, srsid))
+ctdat = np.load(filepath, allow_pickle=True)["image"]
+ctlab = np.load(filepath.replace("clean", "label"), allow_pickle=True)["label"]
 
-try:
-    imgs = np.load(filename, allow_pickle=True)["image"][np.newaxis, :]
-except Exception:
-    imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
-    extendbox = np.load(filename.replace(".npz", "_extendbox.npz"))["extendbox"]
 
-    if len(ctlab) == 0:
-        ctlab = np.array([[0, 0, 0, 0]])
-    else:
-        ll = np.copy(ctlab).T
-        # label2[:3] = label2[:3] * np.expand_dims(spacing, 1) / np.expand_dims(resolution, 1)
-        # label2[3] = label2[3] * spacing[1] / resolution[1]
-        ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
-        ctlab = ll[:4].T
-# ctdat = lumTrans(imgs)
-ctdat = imgs
 
 print('Groundtruth')
 print("image shape is: ", ctdat.shape)

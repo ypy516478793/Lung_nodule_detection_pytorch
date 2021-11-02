@@ -49,7 +49,8 @@ class lunanod(data.Dataset):
                 self.train_labels.append(label)
 
             self.train_data = np.concatenate(self.train_data)
-            self.train_data = self.train_data.reshape((len(fnamelst), 32, 32, 32))
+            # self.train_data = self.train_data.reshape((len(fnamelst), 32, 32, 32))
+            self.train_data = self.train_data.reshape((len(fnamelst), 36, 36, 36))
             # self.train_labels = np.asarray(self.train_labels)
             # self.train_data = self.train_data.transpose((0, 2, 3, 4, 1))  # convert to HWZC
             self.train_len = len(fnamelst)
@@ -58,15 +59,18 @@ class lunanod(data.Dataset):
             self.test_labels = []
             self.test_feat = featlst
             for label, fentry in zip(labellst, fnamelst):
-                if fentry.shape[0] != 32 or fentry.shape[1] != 32 or fentry.shape[2] != 32:
-                    print(fentry.shape, type(fentry), type(fentry)!='str')
-                if type(fentry) != 'str':
+                # if fentry.shape[0] != 32 or fentry.shape[1] != 32 or fentry.shape[2] != 32:
+                #     print(fentry.shape, type(fentry), type(fentry)!='str')
+                if not isinstance(fentry, str):
                     self.test_data.append(fentry)
                     self.test_labels.append(label)
                     # print('1')
                 else:
                     file = os.path.join(npypath, fentry)
-                    self.test_data.append(np.load(file))
+                    data = np.load(file)
+                    if data.shape[0] != 32 or data.shape[1] != 32 or data.shape[2] != 32:
+                        print(data.shape, type(data), type(data) != 'str')
+                    self.test_data.append(data)
                     self.test_labels.append(label)
             self.test_data = np.concatenate(self.test_data)
             # print(self.test_data.shape)

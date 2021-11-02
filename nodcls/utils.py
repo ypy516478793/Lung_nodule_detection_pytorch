@@ -42,7 +42,8 @@ def init_params(net):
                 init.constant(m.bias, 0)
 
 
-_, term_width = os.popen('stty size', 'r').read().split()
+# _, term_width = os.popen('stty size', 'r').read().split()
+term_width = 302
 term_width = int(term_width)
 
 TOTAL_BAR_LENGTH = 65.
@@ -124,7 +125,7 @@ def format_time(seconds):
     return f
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import numpy as np
 import matplotlib.pyplot as plt
 def plot_log(logname='/media/data1/wentao/CTnoddetector/training/nodcls/log-1'):

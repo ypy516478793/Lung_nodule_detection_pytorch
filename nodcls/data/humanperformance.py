@@ -92,7 +92,7 @@ for idx in range(len(srslist)):
 # read LIDC dataset
 lunantdictlidc = np.load('lunaantdictlidc.npy').item()
 import xlrd
-lidccsvfname = '/media/data1/wentao/LIDC-IDRI/list3.2.xls'
+lidccsvfname = 'list3.2.xls'
 antdict = {}
 wb = xlrd.open_workbook(os.path.join(lidccsvfname))
 for s in wb.sheets():
@@ -118,7 +118,7 @@ for s in wb.sheets():
 				antdict[s.cell(row, 0).value+'_'+str(int(s.cell(row, 1).value))].append(valuelist)
 # update LIDC annotation with series number, rather than scan id
 import dicom
-LIDCpath = '/media/data1/wentao/LIDC-IDRI/DOI/'
+LIDCpath = '../..//LIDC-IDRI/DOI/'
 antdictscan = {}
 for k, v in antdict.items():
 	pid, scan = k.split('_')
@@ -176,7 +176,7 @@ print('maxdist', maxdist)
 # fid.close()
 # fd 1
 fd1lst = []
-for fname in os.listdir('/media/data1/wentao/tianchi/luna16/subset'+str(fold)+'/'):
+for fname in os.listdir('../../LUNA16/subset'+str(fold)+'/'):
 	if fname.endswith('.mhd'): fd1lst.append(fname[:-4])
 # find the malignancy, shape information from xml file
 import xml.dom.minidom
@@ -191,10 +191,10 @@ for srsid, extant in lunaantdictnodid.items():
 		getnodid = []
 		nant = 0
 		mallst = []
-		for fname in os.listdir(os.path.join(*['/media/data1/wentao/LIDC-IDRI/DOI/', pid, stdid, srsid])):
+		for fname in os.listdir(os.path.join(*['../..//LIDC-IDRI/DOI/', pid, stdid, srsid])):
 			if fname.endswith('.xml'):
 				nant += 1
-				dom = xml.dom.minidom.parse(os.path.join(*['/media/data1/wentao/LIDC-IDRI/DOI/', pid, stdid, srsid, fname]))
+				dom = xml.dom.minidom.parse(os.path.join(*['../../LIDC-IDRI/DOI/', pid, stdid, srsid, fname]))
 				root = dom.documentElement
 				rsessions = root.getElementsByTagName('readingSession')
 				for rsess in rsessions:
@@ -237,7 +237,7 @@ for i in range(len(srslst)):
 	writer.writerow([srslst[i]+'-'+str(i), crdxlst[i], crdylst[i], crdzlst[i], dimlst[i], mlglst[i]])
 	newlst.append([srslst[i]+'-'+str(i), crdxlst[i], crdylst[i], crdzlst[i], dimlst[i], mlglst[i]])
 fid.close()
-subset1path = '/media/data1/wentao/tianchi/luna16/subset'+str(fold)+'/'
+subset1path = '../../LUNA16/subset'+str(fold)+'/'
 testfnamelst = []
 for fname in os.listdir(subset1path):
 	if fname.endswith('.mhd'):

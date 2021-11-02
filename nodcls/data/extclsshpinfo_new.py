@@ -32,7 +32,7 @@ def convert_csv_to_xls():
     import csv
     from xlwt.Workbook import Workbook
 
-    for csvfile in glob.glob(os.path.join('nodcls/data', '*.csv')):
+    for csvfile in glob.glob(os.path.join('./', '*.csv')):
         workbook = Workbook()
         worksheet = workbook.add_sheet("1")
         with open(csvfile, 'rt', encoding='utf8') as f:
@@ -40,10 +40,10 @@ def convert_csv_to_xls():
             for r, row in enumerate(reader):
                 for c, col in enumerate(row):
                     worksheet.write(r, c, col)
-        workbook.save(os.path.join('nodcls/data', csvfile[:-4]) + '.xls')
+        workbook.save(os.path.join('./', csvfile[:-4]) + '.xls')
 
 # read map file
-mapfname = 'nodcls/data/LIDC-IDRI-mappingLUNA16'  # 'LIDC-IDRI-mappingLUNA16'
+mapfname = 'LIDC-IDRI-mappingLUNA16'  # 'LIDC-IDRI-mappingLUNA16'
 
 sidmap = {}
 fid = open(mapfname, 'r')
@@ -65,67 +65,67 @@ fid.close()
 
 # read luna16 annotation
 colname = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm']
-lunaantframe = pd.read_csv('LUNA16/annotations.csv', names=colname)
+lunaantframe = pd.read_csv('../../LUNA16/annotations.csv', names=colname)
 # lunaantframe = pd.read_csv('/nfs/users/ext_prateek.munjal/projects/myDeepLung/evaluationScript/annotations/newannotations.csv', names=colname)
-# srslist = lunaantframe.seriesuid.tolist()[1:]
-# cdxlist = lunaantframe.coordX.tolist()[1:]
-# cdylist = lunaantframe.coordY.tolist()[1:]
-# cdzlist = lunaantframe.coordZ.tolist()[1:]
-# dimlist = lunaantframe.diameter_mm.tolist()[1:]
-# lunaantdict = {}
-# for idx in range(len(srslist)):
-#     vlu = [float(cdxlist[idx]), float(cdylist[idx]), float(cdzlist[idx]), float(dimlist[idx])]
-#     if srslist[idx] in lunaantdict:
-#         lunaantdict[srslist[idx]].append(vlu)
-#     else:
-#         lunaantdict[srslist[idx]] = [vlu]
-#
-# # convert luna16 annotation to LIDC-IDRI annotation space
-# from multiprocessing import Pool
-#
-# lunantdictlidc = {}
-# for fold in range(10):
-#     mhdpath = 'LUNA16/raw_files/subset' + str(fold)
-#     print('fold', fold)
-#
-#
-#     def getvoxcrd(fname):
-#         sliceim, origin, spacing, isflip = load_itk_image(os.path.join(mhdpath, fname))
-#         lunantdictlidc[fname[:-4]] = []
-#         voxcrdlist = []
-#
-#         for lunaant in lunaantdict[fname[:-4]]:
-#             voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
-#             voxcrd[0] = sliceim.shape[0] - voxcrd[0]
-#             voxcrdlist.append(voxcrd)
-#
-#         return voxcrdlist
-#
-#
-#     p = Pool(30)
-#     fnamelist = []
-#     for fname in os.listdir(mhdpath):
-#         if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
-#             fnamelist.append(fname)
-#
-#     voxcrdlist = p.map(getvoxcrd, fnamelist)
-#     listidx = 0
-#     for fname in os.listdir(mhdpath):
-#         if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
-#             lunantdictlidc[fname[:-4]] = []
-#             for subidx, lunaant in enumerate(lunaantdict[fname[:-4]]):
-#                 # voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
-#                 # voxcrd[-1] = sliceim.shape[0] - voxcrd[0]
-#                 lunantdictlidc[fname[:-4]].append([lunaant, voxcrdlist[listidx][subidx]])
-#             listidx += 1
-#     p.close()
-# np.save('nodcls/data/lunaantdictlidc.npy', lunantdictlidc)
+srslist = lunaantframe.seriesuid.tolist()[1:]
+cdxlist = lunaantframe.coordX.tolist()[1:]
+cdylist = lunaantframe.coordY.tolist()[1:]
+cdzlist = lunaantframe.coordZ.tolist()[1:]
+dimlist = lunaantframe.diameter_mm.tolist()[1:]
+lunaantdict = {}
+for idx in range(len(srslist)):
+    vlu = [float(cdxlist[idx]), float(cdylist[idx]), float(cdzlist[idx]), float(dimlist[idx])]
+    if srslist[idx] in lunaantdict:
+        lunaantdict[srslist[idx]].append(vlu)
+    else:
+        lunaantdict[srslist[idx]] = [vlu]
+
+# convert luna16 annotation to LIDC-IDRI annotation space
+from multiprocessing import Pool
+
+lunantdictlidc = {}
+for fold in range(10):
+    mhdpath = '../../LUNA16/raw_files/subset' + str(fold)
+    print('fold', fold)
+
+
+    def getvoxcrd(fname):
+        sliceim, origin, spacing, isflip = load_itk_image(os.path.join(mhdpath, fname))
+        lunantdictlidc[fname[:-4]] = []
+        voxcrdlist = []
+
+        for lunaant in lunaantdict[fname[:-4]]:
+            voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
+            voxcrd[0] = sliceim.shape[0] - voxcrd[0]
+            voxcrdlist.append(voxcrd)
+
+        return voxcrdlist
+
+
+    p = Pool(30)
+    fnamelist = []
+    for fname in os.listdir(mhdpath):
+        if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
+            fnamelist.append(fname)
+
+    voxcrdlist = p.map(getvoxcrd, fnamelist)
+    listidx = 0
+    for fname in os.listdir(mhdpath):
+        if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
+            lunantdictlidc[fname[:-4]] = []
+            for subidx, lunaant in enumerate(lunaantdict[fname[:-4]]):
+                # voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
+                # voxcrd[-1] = sliceim.shape[0] - voxcrd[0]
+                lunantdictlidc[fname[:-4]].append([lunaant, voxcrdlist[listidx][subidx]])
+            listidx += 1
+    p.close()
+np.save('lunaantdictlidc.npy', lunantdictlidc)
 
 # read LIDC dataset
-lunantdictlidc = np.load('nodcls/data/lunaantdictlidc.npy', allow_pickle=True).item()
+lunantdictlidc = np.load('lunaantdictlidc.npy', allow_pickle=True).item()
 import xlrd
 
-lidccsvfname = 'nodcls/data/list3.2.xls'
+lidccsvfname = 'list3.2.xls'
 antdict = {}
 wb = xlrd.open_workbook(os.path.join(lidccsvfname))
 for s in wb.sheets():
@@ -153,7 +153,7 @@ for s in wb.sheets():
 # update LIDC annotation with series number, rather than scan id
 import pydicom as dicom
 
-LIDCpath = 'LIDC-IDRI/DOI'
+LIDCpath = '../../LIDC-IDRI/DOI'
 antdictscan = {}
 
 valid_pids = []
@@ -189,12 +189,18 @@ for k, v in antdict.items():
                 print('npy', pid, scan, srs)
                 continue
 
-            if not os.path.exists(os.path.join(*[sdu_temp_path, sdu, srs, '1-006.dcm'])):
+            six_dcm = "1-006.dcm"
+            if os.path.isdir(os.path.join(sdu_temp_path, sdu, srs)):
+                for dcm_file in os.listdir(os.path.join(sdu_temp_path, sdu, srs)):
+                    if '-' in dcm_file and int(dcm_file[:-4].split('-')[1]) == 6:
+                        six_dcm = dcm_file
+                        break
+            if not os.path.exists(os.path.join(*[sdu_temp_path, sdu, srs, six_dcm])):
                 if int(pid) not in pid_lt6_dcms:
                     pid_lt6_dcms.append(int(pid))
                 continue
 
-            RefDs = dicom.read_file(os.path.join(*[sdu_temp_path, sdu, srs, '1-006.dcm']))
+            RefDs = dicom.read_file(os.path.join(*[sdu_temp_path, sdu, srs, six_dcm]))
 
             # if int(pid) == 380:
             #     print('check me out')
@@ -246,7 +252,7 @@ for srcid, lunaantlidc in lunantdictlidc.items():
             print(srcid, pid, voxcrd, antdictscan[str(int(pid)) + '_' + srcid], mindist)
         maxdist = max(maxdist, mindist)
         lunaantdictnodid[srcid].append([lunaant, antdictscan[str(int(pid)) + '_' + srcid][minidx][6:]])
-np.save('nodcls/data/lunaantdictnodid.npy', lunaantdictnodid)
+np.save('lunaantdictnodid.npy', lunaantdictnodid)
 print('maxdist', maxdist)
 
 # save it into a csv
@@ -270,21 +276,21 @@ for srsid, extant in lunaantdictnodid.items():
     pid, stdid = sidmap[srsid]
     for extantvlu in extant:
         mallst, callst, sphlst, marlst, loblst, spilst, texlst = [], [], [], [], [], [], []
-        sub_dirs = os.listdir(os.path.join(*['LIDC-IDRI/DOI/', pid]))
+        sub_dirs = os.listdir(os.path.join(*['../../LIDC-IDRI/DOI/', pid]))
         for temp_sub_dir in sub_dirs:
-            all_subsub_dirs = os.listdir(os.path.join(*['LIDC-IDRI/DOI/', pid, temp_sub_dir]))
+            all_subsub_dirs = os.listdir(os.path.join(*['../../LIDC-IDRI/DOI/', pid, temp_sub_dir]))
             for subsub_dir in all_subsub_dirs:
                 # assert len(subsub_dir)==1
                 # for fname in os.listdir(os.path.join(*['/nfs/projects/healthcare/LIDC-IDRI/', pid, stdid, srsid])):
                 for fname in os.listdir(
-                        os.path.join(*['LIDC-IDRI/DOI/', pid, temp_sub_dir, subsub_dir])):
+                        os.path.join(*['../../LIDC-IDRI/DOI/', pid, temp_sub_dir, subsub_dir])):
 
                     if fname.endswith('.xml'):
                         print('Processing ', fname, ' corresponding to ', pid)
                         # dom = xml.dom.minidom.parse(os.path.join(*['/nfs/projects/healthcare/LIDC-IDRI/', pid, stdid, srsid, fname]))
 
                         dom = xml.dom.minidom.parse(os.path.join(
-                            *['LIDC-IDRI/DOI', pid, temp_sub_dir, subsub_dir, fname]))
+                            *['../../LIDC-IDRI/DOI', pid, temp_sub_dir, subsub_dir, fname]))
                         root = dom.documentElement
                         rsessions = root.getElementsByTagName('readingSession')
                         for rsess in rsessions:
@@ -349,7 +355,7 @@ for srsid, extant in lunaantdictnodid.items():
     #     [sum(mallst)/float(len(mallst)), sum(callst)/float(len(callst)), sum(sphlst)/float(len(sphlst)), \
     #     sum(marlst)/float(len(marlst)), sum(loblst)/float(len(loblst)), sum(spilst)/float(len(spilst)), \
     #     sum(texlst)/float(len(texlst))])
-np.save('nodcls/data/lunadctclssgmdict.npy', lunadctclssgmdict)
+np.save('lunadctclssgmdict.npy', lunadctclssgmdict)
 savename = 'annotationdetclssgm.csv'
 fid = open(savename, 'w')
 writer = csv.writer(fid)

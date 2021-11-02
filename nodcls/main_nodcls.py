@@ -13,7 +13,7 @@ import transforms as transforms
 import os
 import argparse
 
-from models import *
+from models.dpn3d import *
 from utils import progress_bar
 from torch.autograd import Variable
 import logging
@@ -35,7 +35,9 @@ best_acc = 0  # best test accuracy
 best_acc_gbt = 0
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 # Cal mean std
-preprocesspath = '/media/data1/wentao/tianchi/luna16/cls/crop_v3/'
+preprocesspath = '../LUNA16/cls/crop_v3/'
+npypath_36 = '../LUNA16/cls/crop_v4/'
+npypath_32 = '../LUNA16/cls/crop_v5/'
 pixvlu, npix = 0, 0
 for fname in os.listdir(preprocesspath):
     if fname.endswith('.npy'):
@@ -80,7 +82,7 @@ tefnamelst = []
 telabellst = []
 tefeatlst = []
 import pandas as pd
-dataframe = pd.read_csv('/media/data1/wentao/tianchi/luna16/CSVFILES/annotationdetclsconvfnl_v3.csv', \
+dataframe = pd.read_csv('data/annotationdetclsconvfnl_v3.csv', \
                         names=['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm', 'malignant'])
 alllst = dataframe['seriesuid'].tolist()[1:]
 labellst = dataframe['malignant'].tolist()[1:]
@@ -90,7 +92,7 @@ crdzlst = dataframe['coordZ'].tolist()[1:]
 dimlst = dataframe['diameter_mm'].tolist()[1:]
 # test id
 teidlst = []
-for fname in os.listdir('/media/data1/wentao/tianchi/luna16/subset'+str(fold)+'/'):
+for fname in os.listdir('../LUNA16/raw_files/subset'+str(fold)+'/'):
     if fname.endswith('.mhd'):
         teidlst.append(fname[:-4])
 mxx = mxy = mxz = mxd = 0
@@ -102,11 +104,12 @@ for srsid, label, x, y, z, d in zip(alllst, labellst, crdxlst, crdylst, crdzlst,
     if srsid in blklst: continue
     # crop raw pixel as feature
     data = np.load(os.path.join(preprocesspath, srsid+'.npy'))
-    bgx = data.shape[0]/2-CROPSIZE/2
-    bgy = data.shape[1]/2-CROPSIZE/2
-    bgz = data.shape[2]/2-CROPSIZE/2
+    bgx = data.shape[0]//2-CROPSIZE//2
+    bgy = data.shape[1]//2-CROPSIZE//2
+    bgz = data.shape[2]//2-CROPSIZE//2
     data = np.array(data[bgx:bgx+CROPSIZE, bgy:bgy+CROPSIZE, bgz:bgz+CROPSIZE])
-    feat = np.hstack((np.reshape(data, (-1,)) / 255, float(d)))
+    # feat = np.hstack((np.reshape(data, (-1,)) / 255, float(d)))
+    feat = np.array([float(d)])
     # print(feat.shape)
     if srsid.split('-')[0] in teidlst:
         tefnamelst.append(srsid+'.npy')
@@ -126,10 +129,10 @@ for idx in range(len(tefeatlst)):
     # tefeatlst[idx][1] /= mxy
     # tefeatlst[idx][2] /= mxz
     tefeatlst[idx][-1] /= mxd
-trainset = lunanod(trfnamelst, trlabellst, trfeatlst, train=True, download=True, transform=transform_train)
+trainset = lunanod(npypath_36, trfnamelst, trlabellst, trfeatlst, train=True, download=True, transform=transform_train)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=16, shuffle=True, num_workers=30)
 
-testset = lunanod(tefnamelst, telabellst, tefeatlst, train=False, download=True, transform=transform_test)
+testset = lunanod(npypath_32, tefnamelst, telabellst, tefeatlst, train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False, num_workers=30)
 savemodelpath = './checkpoint-'+str(fold)+'/'
 # Model
@@ -206,7 +209,7 @@ def train(epoch):
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
-        train_loss += loss.data[0]
+        train_loss += loss.cpu().detach().numpy()
         _, predicted = torch.max(outputs.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
@@ -242,7 +245,7 @@ def test(epoch, m):
         idx += len(targets)
 
         loss = criterion(outputs, targets)
-        test_loss += loss.data[0]
+        test_loss += loss.cpu().detach().numpy()
         _, predicted = torch.max(outputs.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()

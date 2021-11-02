@@ -44,49 +44,49 @@ fid.close()
 # read luna16 annotation
 colname = ['seriesuid', 'coordX', 'coordY', 'coordZ', 'diameter_mm']
 lunaantframe = pd.read_csv('../../LUNA16/annotations.csv', names=colname)
-# srslist = lunaantframe.seriesuid.tolist()[1:]
-# cdxlist = lunaantframe.coordX.tolist()[1:]
-# cdylist = lunaantframe.coordY.tolist()[1:]
-# cdzlist = lunaantframe.coordZ.tolist()[1:]
-# dimlist = lunaantframe.diameter_mm.tolist()[1:]
-# lunaantdict = {}
-# for idx in range(len(srslist)):
-# 	vlu = [float(cdxlist[idx]), float(cdylist[idx]), float(cdzlist[idx]), float(dimlist[idx])]
-# 	if srslist[idx] in lunaantdict:
-# 		lunaantdict[srslist[idx]].append(vlu)
-# 	else:
-# 		lunaantdict[srslist[idx]] = [vlu]
-# # convert luna16 annotation to LIDC-IDRI annotation space
-# from multiprocessing import Pool
-# lunantdictlidc = {}
-# for fold in range(10):
-# 	mhdpath = '../../LUNA16/raw_files/subset'+str(fold)
-# 	print('fold', fold)
-# 	def getvoxcrd(fname):
-# 		sliceim,origin,spacing,isflip = load_itk_image(os.path.join(mhdpath, fname))
-# 		lunantdictlidc[fname[:-4]] = []
-# 		voxcrdlist = []
-# 		for lunaant in lunaantdict[fname[:-4]]:
-# 			voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
-# 			voxcrd[-1] = sliceim.shape[0] - voxcrd[0]
-# 			voxcrdlist.append(voxcrd)
-# 		return voxcrdlist
-# 	p = Pool(30)
-# 	fnamelist = []
-# 	for fname in os.listdir(mhdpath):
-# 		if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
-# 			fnamelist.append(fname)
-# 	voxcrdlist = p.map(getvoxcrd, fnamelist)
-# 	listidx = 0
-# 	for fname in os.listdir(mhdpath):
-# 		if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
-# 			lunantdictlidc[fname[:-4]] = []
-# 			for subidx, lunaant in enumerate(lunaantdict[fname[:-4]]):
-# 				# voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
-# 				# voxcrd[-1] = sliceim.shape[0] - voxcrd[0]
-# 				lunantdictlidc[fname[:-4]].append([lunaant, voxcrdlist[listidx][subidx]])
-# 			listidx += 1
-# 	p.close()
+srslist = lunaantframe.seriesuid.tolist()[1:]
+cdxlist = lunaantframe.coordX.tolist()[1:]
+cdylist = lunaantframe.coordY.tolist()[1:]
+cdzlist = lunaantframe.coordZ.tolist()[1:]
+dimlist = lunaantframe.diameter_mm.tolist()[1:]
+lunaantdict = {}
+for idx in range(len(srslist)):
+	vlu = [float(cdxlist[idx]), float(cdylist[idx]), float(cdzlist[idx]), float(dimlist[idx])]
+	if srslist[idx] in lunaantdict:
+		lunaantdict[srslist[idx]].append(vlu)
+	else:
+		lunaantdict[srslist[idx]] = [vlu]
+# convert luna16 annotation to LIDC-IDRI annotation space
+from multiprocessing import Pool
+lunantdictlidc = {}
+for fold in range(10):
+	mhdpath = '../../LUNA16/raw_files/subset'+str(fold)
+	print('fold', fold)
+	def getvoxcrd(fname):
+		sliceim,origin,spacing,isflip = load_itk_image(os.path.join(mhdpath, fname))
+		lunantdictlidc[fname[:-4]] = []
+		voxcrdlist = []
+		for lunaant in lunaantdict[fname[:-4]]:
+			voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
+			voxcrd[-1] = sliceim.shape[0] - voxcrd[0]
+			voxcrdlist.append(voxcrd)
+		return voxcrdlist
+	p = Pool(30)
+	fnamelist = []
+	for fname in os.listdir(mhdpath):
+		if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
+			fnamelist.append(fname)
+	voxcrdlist = p.map(getvoxcrd, fnamelist)
+	listidx = 0
+	for fname in os.listdir(mhdpath):
+		if fname.endswith('.mhd') and fname[:-4] in lunaantdict:
+			lunantdictlidc[fname[:-4]] = []
+			for subidx, lunaant in enumerate(lunaantdict[fname[:-4]]):
+				# voxcrd = worldToVoxelCoord(lunaant[:3][::-1], origin, spacing)
+				# voxcrd[-1] = sliceim.shape[0] - voxcrd[0]
+				lunantdictlidc[fname[:-4]].append([lunaant, voxcrdlist[listidx][subidx]])
+			listidx += 1
+	p.close()
 # np.save('lunaantdictlidc.npy', lunantdictlidc)
 # read LIDC dataset
 lunantdictlidc = np.load('lunaantdictlidc.npy').item()
@@ -152,7 +152,7 @@ for srcid, lunaantlidc in lunantdictlidc.items():
 			continue
 		for idx, lidcant in enumerate(antdictscan[pid+'_'+srcid]):
 			dist = math.pow(voxcrd[0] - lidcant[3], 2) # z
-			dist = math.pow(voxcrd[1] - lidcant[4], 2) # y
+			dist += math.pow(voxcrd[1] - lidcant[4], 2) # y
 			dist += math.pow(voxcrd[2] - lidcant[5], 2) # x
 			if dist < mindist:
 				mindist = dist

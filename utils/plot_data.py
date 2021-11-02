@@ -34,6 +34,7 @@ def load_mhd(data_path, label_path=None, load_label=False):
             pos = worldToVoxelCoord(c[1:4][::-1], origin=origin, spacing=spacing)
             if isflip:
                 pos[1:] = ori_shape[1:3] - pos[1:]
+            print("Raw label: ", pos)
             label.append(np.concatenate([pos, [c[4] / spacing[1]]]))
         label = np.array(label).T
         if len(label) > 0:
