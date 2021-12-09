@@ -532,7 +532,7 @@ class MethodistFull(Dataset):
                     imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
                     imgs = imgs.squeeze(0)
                 if not self.mask_lung:
-                    imgs = lumTrans(imgs)
+                    imgs = lumTrans(imgs) # fixme: Need to decide when to do normalization
 
                 pass
 

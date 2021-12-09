@@ -58,6 +58,7 @@ from tqdm import tqdm
 from natsort import natsorted
 import pandas as pd
 import argparse
+import glob
 
 import warnings
 
@@ -895,7 +896,8 @@ def change_root_info(dst_dir):
             #     assert os.path.exists(os.path.join(dst_dir, subPath))
             subPath = "/".join(subPathList)
             # assert os.path.exists(os.path.join(dst_dir, subPath))
-            assert os.path.exists(os.path.join(dst_dir, subPath.replace(".npz", "_clean.npz")))
+            assert os.path.exists(os.path.join(dst_dir, subPath)) or os.path.exists(
+                os.path.join(dst_dir, subPath.replace(".npz", "_clean.npz")))
         info["imagePath"] = os.path.join(dst_dir, subPath)
     print(infos)
 
@@ -985,6 +987,25 @@ def make_lungmask(img, display=False, pad_value=-3000):
         plt.show()
     return mask * raw_img + (1 - mask).astype('uint8') * pad_value, mask
 
+from prepare_lung.lung_seg import lung_seg_single
+def mask_scan_Kelvin(images):
+    # Reverse the image from [z, y, x] to [x, y, z]
+    images = images.transpose(2, 1, 0)
+
+    pad_value = -3000
+    masks = lung_seg_single(images)
+    if masks is None:
+        return None, None
+    masks = (masks == 2).astype(np.int)
+
+    # Reverse the image back from [x, y, z] to [z, y, x]
+    masks = masks.transpose(2, 1, 0)
+    images = images.transpose(2, 1, 0)
+
+    masked_images = masks * images + (1 - masks).astype('uint8') * pad_value
+
+    return masked_images, masks
+
 def mask_scan(images):
     masked_images = []
     masks = []
@@ -1032,7 +1053,11 @@ def mask_crop_func(data_path):
         return
 
     imgs = np.load(data_path, allow_pickle=True)["image"]
-    imgs, masks = mask_scan(imgs)
+    # imgs, masks = mask_scan(imgs)  ## Old segmentation
+    imgs, masks = mask_scan_Kelvin(imgs)  ## New segmentation
+    if masks is None:
+        print("no lung for {:s}".format(data_path))
+        return
     # imgs = lumTrans(imgs)
 
     zz, yy, xx = np.where(masks)
@@ -1074,6 +1099,8 @@ def mask_crop_func(data_path):
     # np.save(os.path.join(dirname, filename+'_origin.npy'), origin)
     np.savez_compressed(os.path.join(dirname, filename+'_mask.npz'), masks=masks)
     print("save to {:s}".format(os.path.join(dirname, filename+'_clean.npz')))
+
+    return
 
 def prepare_masked_cropped_images(root_dir, save_dir):
     # info_path = os.path.join(root_dir, "CTinfo.npz")
@@ -1528,7 +1555,7 @@ def update_dataset_checklist(root_dir, save_dir, ck_path):
     checklist_df = pd.read_excel(ck_path, skiprows=1, dtype={"date": str})
     # change_root_info(root_dir) # change image path in the root info file
 
-    assign_PET_label(root_dir)
+    # assign_PET_label(root_dir)
     # imageInfo = remove_duplicate(imageInfo)
     # norm_str = "norm" if normalize else "raw"
     # save_dir = os.path.join(save_dir, "central_slices_{:s}".format(norm_str))

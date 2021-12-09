@@ -495,20 +495,20 @@ def mode_normalization_methodist():
     #     copyfile(os.path.join(data_dir, pos_label_file), os.path.join(save_dir, pos_label_file))
 
 if __name__ == '__main__':
-    mode_func = mode_norm3
-    pad_value = -3000
-    save_dir = "./LUNA16/modeNorm3_files"
-    data_dir = "./LUNA16/masked_files"
-    mode_normalization_luna()
+    # mode_func = mode_norm3
+    # pad_value = -3000
+    # save_dir = "./LUNA16/modeNorm3_files"
+    # data_dir = "./LUNA16/masked_files"
+    # mode_normalization_luna()
 
 
     # check_statistic()
 
 
-    # mode_func = mode_norm
-    # pad_value = -3000
-    # save_dir = "./Methodist_incidental/data_Ben/modeNorm"
-    # data_dir = "./Methodist_incidental/data_Ben/masked"
-    # mode_normalization_methodist()
+    mode_func = mode_norm
+    pad_value = -3000
+    save_dir = "./Methodist_incidental/data_Ben/modeNorm"
+    data_dir = "./Methodist_incidental/data_Ben/masked"
+    mode_normalization_methodist()
 
     # check_max_luna()

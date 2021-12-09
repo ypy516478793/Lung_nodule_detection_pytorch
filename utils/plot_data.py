@@ -4,7 +4,7 @@ from show_results import add_bbox
 from statistics import mode
 from skimage.filters import threshold_otsu
 from collections import Counter
-from prepare_lung.preprocess_lung import mode_norm, mode_norm2, mode_norm3
+from prepare_lung.lung_normalization import mode_norm, mode_norm2, mode_norm3
 
 import matplotlib.pyplot as plt
 import pandas as pd
