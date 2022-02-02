@@ -24,6 +24,7 @@ sys.path.append("../")
 
 from detector_ben.layers import acc, top_pbb
 from detector_ben.utils import *
+from dataLoader import getDataset
 from datetime import datetime
 from copy import deepcopy
 from tqdm import tqdm
@@ -38,7 +39,7 @@ import time
 
 parser = argparse.ArgumentParser(description="PyTorch DataBowl3 Detector")
 parser.add_argument("--datasource", "-d", type=str, default="luna",
-                    help="luna, lunaRaw, methoidstPilot, methodistFull, additional")
+                    help="luna, methoidstPilot, methBenMinmax, methBenMinmaxNew")
 parser.add_argument("--data_dir", "-p", default=None, help="Data directory")
 parser.add_argument("--pad_value", "-pv", default=None, help="Pad value for patching")
 parser.add_argument("--model", "-m", metavar="MODEL", default="res18", help="model")
@@ -125,37 +126,10 @@ def main():
     torch.manual_seed(0)
 
     ## Datasource (config)
-    if args.datasource == "lunaRaw":
-        # Dataset = datald.lunaRaw
-        from dataLoader.lunaRaw import LunaRaw, LunaConfig
-        config = LunaConfig()
-        Dataset = LunaRaw
-    elif args.datasource == "luna":
-        # Dataset = datald.luna
-        from dataLoader.luna import Luna, LunaConfig
-        config = LunaConfig()
-        Dataset = Luna
-    elif args.datasource == "methodistFull":
-        from dataLoader.methodistFull import MethodistFull, IncidentalConfig
-        config = IncidentalConfig()
-        config.SPLIT_SEED = args.rseed
-        config.LIMIT_TRAIN = args.limit_train
-        config.MASK_LUNG = args.mask
-        config.CROP_LUNG = args.crop
-        config.AUGTYPE["flip"] = args.flip
-        config.AUGTYPE["swap"] = args.swap
-        config.AUGTYPE["scale"] = args.scale
-        config.AUGTYPE["rotate"] = args.rotate
-        config.AUGTYPE["contrast"] = args.contrast
-        config.AUGTYPE["bright"] = args.bright
-        config.AUGTYPE["sharp"] = args.sharp
-        config.AUGTYPE["splice"] = args.splice
 
-        config.KFOLD = args.kfold
-        config.SPLIT_ID = args.split_id
-        Dataset = MethodistFull
+    # config = merge_args(config, args)
 
-    config = merge_args(config, args)
+    config, Dataset = getDataset(args)
 
     ## Specify the save directory
     save_dir = args.save_dir
@@ -494,7 +468,7 @@ def test(data_loader, net, get_pbb, save_dir, config):
         print("TARGET IS: " + str(target))
         lbb = target[0]
         nzhw = nzhw[0]
-        name = data_loader.dataset.filenames[i_name].split("/")[-1].split("_clean")[0].rstrip(".npz")   # .split("-")[0]  wentao change
+        name = data_loader.dataset.filepaths[i_name].split("/")[-1].split("_clean")[0].rstrip(".npz")   # .split("-")[0]  wentao change
         namelist.append(name)
         data = data[0][0]
         coord = coord[0][0]

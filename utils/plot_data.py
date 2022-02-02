@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from prepare import lumTrans, load_itk_image, resample, worldToVoxelCoord, process_mask
+from utils.data_utils import load_nii as load_nii_func
 from show_results import add_bbox
 from statistics import mode
 from skimage.filters import threshold_otsu
@@ -44,6 +45,19 @@ def load_mhd(data_path, label_path=None, load_label=False):
             label = label[:4].T
     label = np.array(label)
 
+    return image, label
+
+def load_nii(data_path, label_path=None, load_label=False):
+    image, spacing = load_nii_func(data_path)
+    if load_label:
+        assert label_path is not None
+        filename = os.path.basename(data_path).rstrip(".nii.gz")
+        pos_df = pd.read_csv(label_path)
+        pstr, dstr = filename.split("_")
+        patient_colname = "patient" if "patient" in pos_df.columns else 'Patient\n Index'
+        assert patient_colname in pos_df
+        existId = (pos_df[patient_colname] == pstr) & (pos_df["date"] == int(dstr))
+        label = pos_df[existId][["z", "y", "x", "d"]].values
     return image, label
 
 def load_npy(data_path, label_path=None, load_label=False):
@@ -114,6 +128,8 @@ def plot_data(args):
         scan, label = load_mhd(data_path, label_path, load_label)
     elif data_path.endswith(".npy"):
         scan, label = load_npy(data_path, label_path, load_label)
+    elif data_path.endswith(".nii") or data_path.endswith(".nii.gz"):
+        scan, label = load_nii(data_path, label_path, load_label)
     else:
         assert data_path.endswith(".npz")
         scan, label = load_npz(data_path, label_path, load_label)
@@ -129,6 +145,14 @@ def plot_data(args):
         # scan = mode_norm3(scan, pad_value, verbose=True)
 
     ## load label
+    # plot all labels
+    if nodule_index == 100 and len(label) > 0:
+        for l in label:
+            z = int(l[0])
+            plot(scan, l, z)
+        return
+
+    # plot one label if it exists
     if load_label and nodule_index < len(label):
         z = int(label[nodule_index][0])
         l = label[nodule_index]
@@ -139,6 +163,9 @@ def plot_data(args):
     else:
         z = np.random.randint(0, scan.shape[0])
         l = None
+    plot(scan, l, z)
+
+def plot(scan, l, z):
 
     ## plot data
     fig, axes = plt.subplots(2, 2, figsize=(6.4 * 2, 4.8 * 2))
@@ -194,7 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--data_path', type=str, help="path for the data",
                         default="./LUNA16/raw_files/subset0/1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260.mhd")
     parser.add_argument('-a', '--label_path', type=str, help="path for the label", default=None)
-    parser.add_argument('-ni', '--nodule_index', type=int, help="nodule index; not loading any nodule if is -1", default=-1)
+    parser.add_argument('-ni', '--nodule_index', type=int, help="nodule index; not loading any nodule if is -1; load all if is 100", default=100)
     parser.add_argument('-z', '--slice', type=int, default=None, help="the slice index")
     parser.add_argument('-n', '--norm', type=str, choices=["min_max", "mode_norm"], default=None, help="options: [min_max, mode_norm]")
     args = parser.parse_args()

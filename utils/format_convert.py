@@ -30,11 +30,18 @@ for filepath in filepaths:
 
 
 def npz2nii(filepath):
-    pixelSpace = 0.8945
+    pixelSpace = 1. #0.8945
     tmp = np.load(filepath, allow_pickle=True)
-    image = tmp["masks"]
+    if "image" in tmp:
+        image = tmp["image"]
+        if len(image.shape) == 4 and len(image) == 1: # image.shape == (1, z, y, x)
+            image = image[0]
+    elif "masks" in tmp:
+        image = tmp["masks"]
+    else:
+        raise ValueError("no image and masks in:", list(tmp.keys()))
     image = image.transpose(2, 1, 0)
-    image = image[::-1, ::-1, ::-1].astype(np.float64)
+    image = image[::-1, ::-1, ::-1].astype(np.float32)
     affine = np.zeros((4, 4))
     affine_diag = [pixelSpace, pixelSpace] + [1., 1.]
     # affine_diag[0] = affine_diag[0] * -1
@@ -46,6 +53,10 @@ def npz2nii(filepath):
     nib.save(image_nii, save_path)
     print("Save to: ", save_path)
 
+
+if __name__ == '__main__':
+    filepath = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/resampled/Lung_patient468/patient468-20180625.npz"
+    npz2nii(filepath)
 
 # filepath = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Kelvin/Lung_patient002/patient002_20090310.nii.gz"
 # hdr = nib.load(filepath)

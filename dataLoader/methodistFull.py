@@ -13,78 +13,90 @@ import imgaug.augmenters as iaa
 import pandas as pd
 import numpy as np
 import torch
+import glob
 import time
 import os
 
 
-class IncidentalConfig(object):
-    CROP_LUNG = True
-    MASK_LUNG = True
-    PET_CT = None
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
-    DATA_DIR = "./Methodist_incidental/data_Ben/modeNorm3"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/masked_croped_modeNorm"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
-    # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
-    # POS_LABEL_FILE = None
-    POS_LABEL_FILE = "pos_labels_norm.csv"
-    # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
-    # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
-    INFO_FILE = "CTinfo.npz"
-    BLACK_LIST = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
-                  "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
-                  "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
-                  "041293960-20170227", "000033167-20131213", "022528020-20180525", "025432105-20180730",
-                  "000361956-20180625"]
-
-    ANCHORS = [10.0, 30.0, 60.0]
-    # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
-    MAX_NODULE_SIZE = 60
-    CHANNEL = 1
-    CROP_SIZE = [96, 96, 96]
-    STRIDE = 4
-    MAX_STRIDE = 16
-    NUM_NEG = 800
-    TH_NEG = 0.02
-    TH_POS_TRAIN = 0.5
-    TH_POS_VAL = 1
-    NUM_HARD = 2
-    BOUND_SIZE = 12
-    RESO = 1
-    SIZE_LIM = 2.5  # 3 #6. #mm
-    SIZE_LIM2 = 10  # 30
-    SIZE_LIM3 = 20  # 40
-    AUG_SCALE = True
-    R_RAND_CROP = 0.3
-    PAD_VALUE = 0   # previous 170
-    AUGTYPE = {"flip": False, "swap": False, "scale": False, "rotate": False, "contrast": False, "bright": False, "sharp": False, "splice": False}
-    # AUGTYPE = {"flip": True, "swap": True, "scale": True, "rotate": True}
-    KFOLD = None
-    KFOLD_SEED = None
-
-    CONF_TH = 4
-    NMS_TH = 0.3
-    DETECT_TH = 0.5
-
-    SIDE_LEN = 144
-    MARGIN = 32
-
-    ORIGIN_SCALE = False
-    SPLIT_SEED = None
-    LIMIT_TRAIN = None
-    SPLIT_ID = None
-
-    def display(self):
-        """Display Configuration values."""
-        print("\nConfigurations:")
-        for a in dir(self):
-            if not a.startswith("__") and not callable(getattr(self, a)):
-                print("{:30} {}".format(a, getattr(self, a)))
-        print("\n")
+# class IncidentalConfig(object):
+#     CROP_LUNG = True
+#     MASK_LUNG = True
+#     PET_CT = None
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/maskCropDebug"
+#     DATA_DIR = "./Methodist_incidental/data_Ben/modeNorm3"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_Ben/masked_croped_modeNorm"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/DeepLung-3D_Lung_Nodule_Detection/Methodist_incidental/data_unlabeled/masked_with_crop"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/labeled/"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_king/unlabeled/"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data/raw_data/unlabeled/"
+#     # DATA_DIR = "/home/cougarnet.uh.edu/pyuan2/Projects/Incidental_Lung/data_mamta/processed_data/unlabeled/"
+#     # POS_LABEL_FILE = None
+#     POS_LABEL_FILE = "pos_labels_norm.csv"
+#     # POS_LABEL_FILE = "gt_labels_checklist.xlsx"
+#     # POS_LABEL_FILE = "Predicted_labels_checklist_Kim_TC.xlsx"
+#     INFO_FILE = "CTinfo.npz"
+#     BLACK_LIST = ["001030196-20121205", "005520101-20130316", "009453325-20130820", "034276428-20131212",
+#                   "036568905-20150714", "038654273-20160324", "011389806-20160907", "015995871-20160929",
+#                   "052393550-20161208", "033204314-20170207", "017478009-20170616", "027456904-20180209",
+#                   "041293960-20170227", "000033167-20131213", "022528020-20180525", "025432105-20180730",
+#                   "000361956-20180625"]
+#
+#     ANCHORS = [10.0, 30.0, 60.0]
+#     # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
+#     MAX_NODULE_SIZE = 60
+#     CHANNEL = 1
+#     CROP_SIZE = [96, 96, 96]
+#     STRIDE = 4
+#     MAX_STRIDE = 16
+#     NUM_NEG = 800
+#     TH_NEG = 0.02
+#     TH_POS_TRAIN = 0.5
+#     TH_POS_VAL = 1
+#     NUM_HARD = 2
+#     BOUND_SIZE = 12
+#     RESO = 1
+#     SIZE_LIM = 2.5  # 3 #6. #mm
+#     SIZE_LIM2 = 10  # 30
+#     SIZE_LIM3 = 20  # 40
+#     AUG_SCALE = True
+#     R_RAND_CROP = 0.3
+#     PAD_VALUE = 0   # previous 170
+#     AUGTYPE = {"flip": False, "swap": False, "scale": False, "rotate": False, "contrast": False, "bright": False, "sharp": False, "splice": False}
+#     # AUGTYPE = {"flip": True, "swap": True, "scale": True, "rotate": True}
+#     KFOLD = None
+#     KFOLD_SEED = None
+#
+#     CONF_TH = 4
+#     NMS_TH = 0.3
+#     DETECT_TH = 0.5
+#
+#     SIDE_LEN = 144
+#     MARGIN = 32
+#
+#     ORIGIN_SCALE = False
+#     SPLIT_SEED = None
+#     LIMIT_TRAIN = None
+#     SPLIT_ID = None
+#
+#     def display(self):
+#         """Display Configuration values."""
+#         print("\nConfigurations:")
+#         for a in dir(self):
+#             if not a.startswith("__") and not callable(getattr(self, a)):
+#                 print("{:30} {}".format(a, getattr(self, a)))
+#         print("\n")
+Test_fnames = ['patient002_20100910', 'patient002_20110314', 'patient002_20120906', 'patient002_20090310',
+               'patient005_20120524', 'patient006_20121023', 'patient011_20120626', 'patient011_20121015',
+               'patient012_20121204', 'patient016_20121127', 'patient017_20130102', 'patient018_20121001',
+               'patient018_20130110', 'patient021_20120508', 'patient021_20121113', 'patient021_20130212',
+               'patient023_20130316', 'patient025_20130226', 'patient032_20130509', 'patient033_20130514',
+               'patient034_20121002', 'patient034_20121228', 'patient034_20130423', 'patient035_20160830',
+               'patient037_20110516', 'patient037_20111028', 'patient037_20130502', 'patient037_20130510',
+               'patient040_20130722', 'patient041_20130319', 'patient041_20130614', 'patient041_20130723',
+               'patient045_20130718', 'patient046_20130603', 'patient046_20130826', 'patient047_20130821',
+               'patient049_20130820', 'patient050_20130820', 'patient051_20130905', 'patient052_20130516',
+               'patient053_20130912', 'patient055_20130925']
 
 
 def resample_pos(label, thickness, spacing, new_spacing=[1, 1, 1]):
@@ -273,44 +285,52 @@ def augment(sample, target, bboxes, coord, ifflip=False, ifrotate=False, ifswap=
 
 class MethodistFull(Dataset):
     def __init__(self, config, subset="train"):
-        assert (subset == "train" or subset == "val" or subset == "test" or subset == "inference")
         self.config = config
         self.subset = subset
-        self.data_dir = data_dir = config.DATA_DIR
+        self.data_dir = config.DATA_DIR
         self.blacklist = config.BLACK_LIST
-        info_file = config.INFO_FILE
-        pos_label_file = config.POS_LABEL_FILE
         self.augtype = config.AUGTYPE
         self.stride = config.STRIDE
         self.pad_value = config.PAD_VALUE
         self.r_rand = config.R_RAND_CROP
+        self.pet_ct = config.PET_CT
+
+        self.pos_df = None if config.POS_LABEL_FILE is None else \
+            pd.read_csv(os.path.join(config.DATA_DIR, config.POS_LABEL_FILE), dtype={"MRN": str, "date": str})
+        self.filepaths = self.get_filepaths()
+        self.screen()
+        self.crop = Crop(config)
         self.split_comber = SplitComb(config.SIDE_LEN, config.MAX_STRIDE, config.STRIDE,
                                       config.MARGIN, config.PAD_VALUE)
-        self.imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
-        if pos_label_file is not None:
-            if pos_label_file.endswith(".csv"):
-                self.pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"MRN": str, "date": str})
-            else:
-                nskip = 0 if pos_label_file == "gt_labels_checklist.xlsx" else 1
-                self.pos_df = pd.read_excel(os.path.join(data_dir, pos_label_file), skiprows=nskip, dtype={"date": str})
-        self.crop = Crop(config)
-        self.mask_lung = config.MASK_LUNG
-        self.pet_ct = config.PET_CT
-        self.remove_duplicate()
-        self.screen()
-        if subset != "inference":
-            self.__check_labels__()
         self.label_mapping = LabelMapping(config, subset)
         self.kfold = KFold(n_splits=config.KFOLD, random_state=config.KFOLD_SEED) if config.KFOLD else None
         self.load_subset(subset, random_state=config.SPLIT_SEED, limit_train_size=config.LIMIT_TRAIN,
-                         kfold=self.kfold, splitId=config.SPLIT_ID)
+                         kfold=self.kfold, splitId=config.SPLIT_ID, fixTest=config.FIX_TEST)
 
-    def __check_labels__(self):
-        for info in tqdm(self.imageInfo):
-            pstr = info["pstr"]
-            dstr = info["date"]
-            existId = (self.pos_df["patient"] == pstr) & (self.pos_df["date"] == dstr)
-            assert existId.sum() > 0, "no matches, pstr {:}, dstr {:}".format(pstr, dstr)
+        # self.imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
+
+            # if pos_label_file.endswith(".csv"):
+            # else:
+                # nskip = 0 if pos_label_file == "gt_labels_checklist.xlsx" else 1
+                # self.pos_df = pd.read_excel(os.path.join(data_dir, pos_label_file), skiprows=nskip, dtype={"date": str})
+
+        # self.mask_lung = config.MASK_LUNG
+
+        # self.remove_duplicate()
+
+        # if subset != "inference":
+        #     self.__check_labels__()
+
+
+    # def __check_labels__(self):
+    #     for info in tqdm(self.imageInfo):
+    #         pstr = info["pstr"]
+    #         dstr = info["date"]
+    #         existId = (self.pos_df["patient"] == pstr) & (self.pos_df["date"] == dstr)
+    #         assert existId.sum() > 0, "no matches, pstr {:}, dstr {:}".format(pstr, dstr)
+
+    def get_filepaths(self):
+        return glob.glob(self.data_dir + "/*/*_clean.npz")
 
     def set_augment(self):
         if self.aug_op == "flip_rot":
@@ -327,126 +347,166 @@ class MethodistFull(Dataset):
 
         return augmentor
 
-    def remove_duplicate(self):
-        for i, info in enumerate(self.imageInfo):
-            if info["date"] == "":
-                info["date"] = info["imagePath"].strip(".npz").split("-")[-1]
-
-        identifier_set = ["{:}-{:}".format(info["patientID"], info["date"]) for info in self.imageInfo]
-        remove_ids = []
-        from collections import Counter
-        cnt = Counter(identifier_set)
-        for k, v in cnt.items():
-            if k in self.blacklist:
-                indices = [i for i, x in enumerate(identifier_set) if x == k]
-                remove_ids = remove_ids + indices
-            elif v > 1:
-                indices = [i for i, x in enumerate(identifier_set) if x == k]
-                remove_ids = remove_ids + indices[:-1]
-        self.imageInfo = np.delete(self.imageInfo, remove_ids)
+    # def remove_duplicate(self):
+    #     for i, info in enumerate(self.imageInfo):
+    #         if info["date"] == "":
+    #             info["date"] = info["imagePath"].strip(".npz").split("-")[-1]
+    #
+    #     identifier_set = ["{:}-{:}".format(info["patientID"], info["date"]) for info in self.imageInfo]
+    #     remove_ids = []
+    #     from collections import Counter
+    #     cnt = Counter(identifier_set)
+    #     for k, v in cnt.items():
+    #         if k in self.blacklist:
+    #             indices = [i for i, x in enumerate(identifier_set) if x == k]
+    #             remove_ids = remove_ids + indices
+    #         elif v > 1:
+    #             indices = [i for i, x in enumerate(identifier_set) if x == k]
+    #             remove_ids = remove_ids + indices[:-1]
+    #     self.imageInfo = np.delete(self.imageInfo, remove_ids)
 
     def screen(self):
         '''
-        Remove nodule size >= 60
+        Remove scan in the blacklist.
         '''
-        num_images = len(self.imageInfo)
-        print("number of CT scans: {:d}".format(num_images))
-        mask = np.ones(num_images, dtype=bool)
-        if self.pet_ct is not None:
-            for imageId in range(num_images):
-                info = self.imageInfo[imageId]
-                if (self.pet_ct and info["PET"] == "N") or (not self.pet_ct and info["PET"] == "Y"):
-                    mask[imageId] = False
-                # pos = self.load_pos(imageId)
-                # if len(pos) == 0:
-                #     mask[imageId] = False
-            self.imageInfo = self.imageInfo[mask]
-            print("number of CT scans after screening: {:d}".format(len(self.imageInfo)))
+        # TODO: remove scan in the blacklist.
+        pass
 
-    def load_subset(self, subset, random_state=None, limit_train_size=None, kfold=None, splitId=None):
-        ## train/val/test split
+        # num_images = len(self.imageInfo)
+        # print("number of CT scans: {:d}".format(num_images))
+        # mask = np.ones(num_images, dtype=bool)
+        # if self.pet_ct is not None:
+        #     for imageId in range(num_images):
+        #         info = self.imageInfo[imageId]
+        #         if (self.pet_ct and info["PET"] == "N") or (not self.pet_ct and info["PET"] == "Y"):
+        #             mask[imageId] = False
+        #         # pos = self.load_pos(imageId)
+        #         # if len(pos) == 0:
+        #         #     mask[imageId] = False
+        #     self.imageInfo = self.imageInfo[mask]
+        #     print("number of CT scans after screening: {:d}".format(len(self.imageInfo)))
+
+    def load_subset(self, subset, random_state=None, limit_train_size=None, kfold=None, splitId=None, fixTest=False):
         if subset == "inference":
-            infos = self.imageInfo
+            return ## Nothing needs to be modified in inference mode
+
+        ## Train/val/test split for scans
+        if random_state is None:
+            random_state = 42
+
+
+        if kfold is None:
+            if fixTest:
+                trainValScan, testScan = [], []
+                for fpath in self.filepaths:
+                    fname = fpath.split("/")[-1].rstrip("_clean.npz").replace("-", "_")
+                    if fname in Test_fnames:
+                        testScan.append(fpath)
+                    else:
+                        trainValScan.append(fpath)
+                trainScan, valScan = train_test_split(trainValScan, test_size=0.25, random_state=random_state)
+            else:
+                trainScan, valTestScan = train_test_split(self.filepaths, test_size=0.6, random_state=random_state)
+                valScan, testScan = train_test_split(valTestScan, test_size=0.5, random_state=random_state)
         else:
-            ## train/val/test split
-            if random_state is None:
-                random_state = 42
-            if kfold is None:
-                trainInfo, valInfo = train_test_split(self.imageInfo, test_size=0.6, random_state=random_state)
-                valInfo, testInfo = train_test_split(valInfo, test_size=0.5, random_state=random_state)
+            assert splitId is not None
+            if fixTest:
+                trainValScan, testScan = [], []
+                for fpath in self.filepaths:
+                    fname = fpath.split("/")[-1].rstrip("_clean.npz")
+                    if fname in Test_fnames:
+                        testScan.append(fpath)
+                    else:
+                        trainValScan.append(fpath)
             else:
-                assert splitId is not None
-                trainValInfo, testInfo = train_test_split(self.imageInfo, test_size=0.2, random_state=random_state)
-                kf_indices = [(train_index, val_index) for train_index, val_index in kfold.split(trainValInfo)]
-                train_index, val_index = kf_indices[splitId]
-                trainInfo, valInfo = trainValInfo[train_index], trainValInfo[val_index]
+                trainValScan, testScan = train_test_split(self.filepaths, test_size=0.2, random_state=random_state)
+            kf_indices = [(train_index, val_index) for train_index, val_index in kfold.split(trainValScan)]
+            train_index, val_index = kf_indices[splitId]
+            trainScan, valScan = trainValScan[train_index], trainValScan[val_index]
 
-
-            assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
-            if subset == "train":
-                infos = trainInfo
-                if limit_train_size is not None:
-                    infos = infos[:int(limit_train_size * len(infos))]
-            elif subset == "val":
-                infos = valInfo
-            else:
-                infos = testInfo
-                # infos = trainInfo
+        assert subset == "train" or subset == "val" or subset == "test", "Unknown subset!"
+        if subset == "train":
+            scans = trainScan
+            if limit_train_size is not None:
+                scans = scans[:int(limit_train_size * len(scans))]
+        elif subset == "val":
+            scans = valScan
+        else:
+            scans = testScan
+        self.filepaths = scans
 
         ## Get the file list for current subset
-        start = infos[0]["imagePath"].find("Lung_patient")
-        fileList = [i["imagePath"][start:] for i in infos]
-        if subset != "test":
-            fileList = [f for f in fileList if (f not in self.blacklist)]
-        self.filenames = [os.path.join(self.data_dir, f) for f in fileList]
-
+        # start = infos[0]["imagePath"].find("Lung_patient")
+        # fileList = [i["imagePath"][start:] for i in infos]
+        # if subset != "test":
+        #     fileList = [f for f in fileList if (f not in self.blacklist)]
+        # self.filenames = [os.path.join(self.data_dir, f) for f in fileList]
         ## Load the label for current subset
+
+        ## Load all nodules
         labels = []
-        print("Subset {:s} has {:d} samples.".format(subset, len(fileList)))
-        if "pos_df" in dir(self):
-            for filePath in self.filenames:
-                info = self.search_info(filePath)
-                assert info != -1, "No matched info for {:s}!!".format(filePath)
-                l = self.load_pos(info)
+        print("Subset {:s} has {:d} samples.".format(subset, len(self.filepaths)))
+        if self.pos_df is None:
+            for data_path in self.filepaths:
+                dirname = os.path.dirname(data_path)
+                filename = data_path.split("/")[-1].rstrip("_clean.npz")
+                label = np.load(os.path.join(dirname, filename + '_label.npz'), allow_pickle=True)["label"]
+                label = label[label[:, -1] < self.config.MAX_NODULE_SIZE] ## remove nodule larger than specific size
+                if np.all(label == 0):
+                    label = np.array([])
+                labels.append(label)
+        else:
+            for data_path in self.filepaths:
+                filename = data_path.split("/")[-1].rstrip("_clean.npz")
+                pstr, dstr = filename.split("-")
+                patient_colname = "patient" if "patient" in self.pos_df.columns else 'Patient\n Index'
+                assert patient_colname in self.pos_df
+                existId = (self.pos_df[patient_colname] == pstr) & (self.pos_df["date"] == int(dstr))
+                label = self.pos_df[existId][["z", "y", "x", "d"]].values
+                label = label[label[:, -1] < self.config.MAX_NODULE_SIZE] ## remove nodule larger than specific size
+                labels.append(label)
 
-                # print("")
-                if self.config.CROP_LUNG:
-                    extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
-
-                    if len(l) == 0:
-                        l = np.array([[0, 0, 0, 0]])
-                    else:
-                        ll = np.copy(l).T
-                        ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
-                        l = ll[:4].T
-
-                if np.all(l == 0):
-                    l = np.array([])
-                labels.append(l)
+        self.sample_bboxes = labels
+                # info = self.search_info(filePath)
+                # assert info != -1, "No matched info for {:s}!!".format(filePath)
+                # l = self.load_pos(info)
+                #
+                # # print("")
+                # if self.config.CROP_LUNG:
+                #     extendbox = np.load(info["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
+                #
+                #     if len(l) == 0:
+                #         l = np.array([[0, 0, 0, 0]])
+                #     else:
+                #         ll = np.copy(l).T
+                #         ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+                #         l = ll[:4].T
+                #
+                # if np.all(l == 0):
+                #     l = np.array([])
+                # labels.append(l)
 
         ## Duplicate samples based on the nodule size
-        self.sample_bboxes = labels
         if self.subset != "test":
             self.bboxes = []
             for i, l in enumerate(labels):
-                if len(l) > 0:
-                    for t in l:
-                        if t[3] > self.config.SIZE_LIM:
-                            self.bboxes.append([np.concatenate([[i], t])])
-                        if t[3] > self.config.SIZE_LIM2:
-                            self.bboxes += [[np.concatenate([[i], t])]] * 2
-                        if t[3] > self.config.SIZE_LIM3:
-                            self.bboxes += [[np.concatenate([[i], t])]] * 4
+                for t in l:
+                    if t[3] > self.config.SIZE_LIM:
+                        self.bboxes.append([np.concatenate([[i], t])])
+                    if t[3] > self.config.SIZE_LIM2:
+                        self.bboxes += [[np.concatenate([[i], t])]] * 2
+                    if t[3] > self.config.SIZE_LIM3:
+                        self.bboxes += [[np.concatenate([[i], t])]] * 4
             if len(self.bboxes) > 0:
                 self.bboxes = np.concatenate(self.bboxes, axis=0)
 
-    def search_info(self, path):
-        for info in self.imageInfo:
-            # if info["imagePath"].strip(".") in path:
-            # if info["imagePath"] == path:
-            if path.strip("./") in info["imagePath"]:
-                return info
-        return -1
+    # def search_info(self, path):
+    #     for info in self.imageInfo:
+    #         # if info["imagePath"].strip(".") in path:
+    #         # if info["imagePath"] == path:
+    #         if path.strip("./") in info["imagePath"]:
+    #             return info
+    #     return -1
 
     def load_pos(self, imgInfo):
         thickness, spacing = imgInfo["sliceThickness"], imgInfo["pixelSpacing"]
@@ -490,11 +550,11 @@ class MethodistFull(Dataset):
 
         if self.subset == "inference":
             try:
-                temp = np.load(self.filenames[idx], allow_pickle=True)
+                temp = np.load(self.filepaths[idx], allow_pickle=True)
                 info = temp["info"]
                 imgs = temp["image"]
             except:
-                temp = np.load(self.filenames[idx].replace(".npz", "_clean.npz"), allow_pickle=True)
+                temp = np.load(self.filepaths[idx].replace(".npz", "_clean.npz"), allow_pickle=True)
                 info = temp["info"]
                 imgs = temp["image"]
                 imgs = imgs.squeeze(0)
@@ -525,22 +585,27 @@ class MethodistFull(Dataset):
         if self.subset != "test":
             if not isRandomImg:
                 bbox = self.bboxes[idx]
-                filename = self.filenames[int(bbox[0])]
-                try:
-                    imgs = np.load(filename, allow_pickle=True)["image"]
-                except:
-                    imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
-                    imgs = imgs.squeeze(0)
-                if not self.mask_lung:
-                    imgs = lumTrans(imgs) # fixme: Need to decide when to do normalization
+                filepath = self.filepaths[int(bbox[0])]
 
-                pass
+                imgs = np.load(filepath, allow_pickle=True)["image"]
 
-                imgs = imgs[np.newaxis, :]
+                # try:
+                #     imgs = np.load(filename, allow_pickle=True)["image"]
+                # except:
+                #     imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+                #     imgs = imgs.squeeze(0)
+                # if not self.mask_lung:
+                #     imgs = lumTrans(imgs) # fixme: Need to decide when to do normalization
+                #
+                # pass
+                #
+                # imgs = imgs[np.newaxis, :]
                 bboxes = self.sample_bboxes[int(bbox[0])]
                 isScale = self.augtype["scale"] and (self.subset == "train")
                 # isScale = False
                 sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes, isScale, isRandom)
+                if sample.shape != (1, 96, 96, 96):
+                    print("")
                 if self.subset == "train" and not isRandom:
                     sample, target, bboxes, coord = augment(sample, target, bboxes, coord,
                                                             ifflip=self.augtype["flip"],
@@ -554,40 +619,28 @@ class MethodistFull(Dataset):
                             imgs, bbox[1:], bboxes, isScale=False, isRand=True)
                         sample, target, bboxes, coord = splice(sample_bgd, target_bgd, bboxes_bgd, coord_bgd, sample,
                                                                target)
-            else:
-                randimid = np.random.randint(len(self.kagglenames))
-                filename = self.kagglenames[randimid]
-                try:
-                    imgs = np.load(filename, allow_pickle=True)["image"]
-                except:
-                    imgs = np.load(filename.replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
-                    imgs = imgs.squeeze(0)
-                if self.mask_lung:
-                    imgs = lumTrans(imgs)
-
-                pass
-
-                imgs = imgs[np.newaxis, :]
-                bboxes = self.sample_bboxes[randimid]
-                isScale = self.augtype["scale"] and (self.subset == "train")
-                sample, target, bboxes, coord = self.crop(imgs, [], bboxes, isScale, isRand=True)
             # print sample.shape, target.shape, bboxes.shape
-            label = self.label_mapping(sample.shape[1:], target, bboxes, filename)
+            label = self.label_mapping(sample.shape[1:], target, bboxes, filepath)
             sample = (sample.astype(np.float32) - 128) / 128
             # if filename in self.kagglenames and self.subset=="train":
             #    label[label==-1]=0
+            if sample.shape != (1, 96, 96, 96):
+                print("")
             if sample.shape[2] != 96:
                 print("")
             return torch.from_numpy(sample), torch.from_numpy(label), coord, target
         else:
-            try:
-                imgs = np.load(self.filenames[idx], allow_pickle=True)["image"]
-            except:
-                imgs = np.load(self.filenames[idx].replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
-                imgs = imgs.squeeze(0)
-            if not self.mask_lung:
-                imgs = lumTrans(imgs)
-            imgs = imgs[np.newaxis, :]
+            # try:
+            #     imgs = np.load(self.filepaths[idx], allow_pickle=True)["image"]
+            # except:
+            #     imgs = np.load(self.filepaths[idx].replace(".npz", "_clean.npz"), allow_pickle=True)["image"]
+            #     imgs = imgs.squeeze(0)
+
+
+            # if not self.mask_lung:
+            #     imgs = lumTrans(imgs)
+            # imgs = imgs[np.newaxis, :]
+            imgs = np.load(self.filepaths[idx], allow_pickle=True)["image"]
             ori_imgs = np.copy(imgs)
             bboxes = self.sample_bboxes[idx]
             nz, nh, nw = imgs.shape[1:]
@@ -617,7 +670,7 @@ class MethodistFull(Dataset):
         elif self.subset == "val":
             return len(self.bboxes)
         else:
-            return len(self.filenames)
+            return len(self.filepaths)
 
 if __name__ == "__main__":
 

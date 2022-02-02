@@ -9,6 +9,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import glob
 import os
 
 
@@ -246,6 +247,15 @@ def mode_norm(scan, pad_value, verbose=False):
 
     return scan
 
+def lumTrans(img, pad_value):
+    img[img == pad_value] = 0
+    lungwin = np.array([-1200., 600.])
+    newimg = (img - lungwin[0]) / (lungwin[1] - lungwin[0])
+    newimg[newimg < 0] = 0
+    newimg[newimg > 1] = 1
+    newimg = (newimg * 255).astype('uint8')
+    return newimg
+
 def check_statistic():
     data_dir = "./Methodist_incidental/data_Ben/masked"
 
@@ -369,23 +379,28 @@ def mode_norm_single_methodist(data_path):
     copyfile(os.path.join(data_dir, name+"_label.npz"), os.path.join(save_dir, name+"_label.npz"))
     print(save_path)
 
-def mode_normalization_methodist():
+def mode_normalization_methodist(data_path=None):
     os.makedirs(save_dir, exist_ok=True)
     pos_label_file = "pos_labels_norm.csv"
 
-    data_ls = []
-    for folder in os.listdir(data_dir):
-        if os.path.isdir(os.path.join(data_dir, folder)):
-            for f in os.listdir(os.path.join(data_dir, folder)):
-                if f.endswith('_clean.npz'):
-                    data_ls.append(os.path.join(data_dir, folder, f))
     os.makedirs(save_dir, exist_ok=True)
     print(save_dir)
 
-    pool = Pool(10)
-    _ = pool.map(mode_norm_single_methodist, data_ls)
-    pool.close()
-    pool.join()
+    if data_path is None:
+        mode_norm_single_methodist(data_path)
+    else:
+        data_ls = glob.glob(data_dir + "/*/*_clean.npz")
+        # for folder in os.listdir(data_dir):
+        #     if os.path.isdir(os.path.join(data_dir, folder)):
+        #         for f in os.listdir(os.path.join(data_dir, folder)):
+        #             if f.endswith('_clean.npz') and "patient427-20180430" in f:
+        #                 data_ls.append(os.path.join(data_dir, folder, f))
+
+
+        pool = Pool(10)
+        _ = pool.map(mode_norm_single_methodist, data_ls)
+        pool.close()
+        pool.join()
 
     if os.path.exists(os.path.join(data_dir, pos_label_file)):
         copyfile(os.path.join(data_dir, pos_label_file), os.path.join(save_dir, pos_label_file))
@@ -504,11 +519,20 @@ if __name__ == '__main__':
 
     # check_statistic()
 
+    ## mode_norm
+    # mode_func = mode_norm
+    # pad_value = -3000
+    # save_dir = "./Methodist_incidental/data_Ben/modeNorm"
+    # data_dir = "./Methodist_incidental/data_Ben/masked"
+    # mode_normalization_methodist()
 
-    mode_func = mode_norm
+    ## min-max norm
+    mode_func = lumTrans
     pad_value = -3000
-    save_dir = "./Methodist_incidental/data_Ben/modeNorm"
-    data_dir = "./Methodist_incidental/data_Ben/masked"
-    mode_normalization_methodist()
+    save_dir = "./Methodist_incidental/data_Ben/preprocessed_data_v1"
+    data_dir = "./Methodist_incidental/data_Ben/masked_data_v1"
+    data_path = "./Methodist_incidental/data_Ben/masked_data_v1/Lung_patient394/patient394-20180209_clean.npz"
+    mode_normalization_methodist(data_path)
+
 
     # check_max_luna()

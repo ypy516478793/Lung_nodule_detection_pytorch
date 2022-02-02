@@ -11,6 +11,10 @@ python utils.plot_data.py \
 python utils.plot_data.py \
     -ni 0 -d ./LUNA16/masked_files/subset0/1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260_clean.npy
 
+## plot methodist_nifti_raw
+python utils.plot_data.py \
+    -ni 0 -d ./Methodist_incidental/data_Kelvin/Nifti_data/Lung_patient002/patient002_20090310.nii.gz \
+    -a ./Methodist_incidental/data_Kelvin/Nifti_data/pos_labels_raw.csv
 
 ## plot methodist_resampled
 python utils.plot_data.py \

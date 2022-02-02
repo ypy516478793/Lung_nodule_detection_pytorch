@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import argparse
+import glob
 import csv
 import sys
 
@@ -623,37 +624,50 @@ def collect():
     annotations_excluded = [header]
     annotations = [header]
 
-    if datasource == "methodistFull":
+    # if datasource == "methodist":
+    #     data_dir = config.DATA_DIR
+    #     pos_label_file = config.POS_LABEL_FILE
+    #     info_file = config.INFO_FILE
+    #     pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
+    #     imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
+    #
+    #     patient2Image = {"{:s}-{:s}".format(info['pstr'], info['date']): id
+    #                      for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
+    #     for seriesuid in seriesUIDs:
+    #
+    #         imageId = patient2Image[seriesuid]
+    #         pstr = imageInfo[imageId]["pstr"]
+    #         dstr = imageInfo[imageId]["date"]
+    #         thickness = imageInfo[imageId]["sliceThickness"]
+    #         spacing = imageInfo[imageId]["pixelSpacing"]
+    #         existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
+    #         pos = pos_df[existId]
+    #         temp0 = pos[["x", "y", "z", "d"]].values
+    #
+    #         if pos_label_file != "pos_labels_norm.csv":
+    #             temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
+    #         # pos = pos[:, [2, 1, 0, 3]]
+    #         if config.CROP_LUNG:
+    #             extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
+    #             ll = np.copy(temp0[:, [2, 1, 0, 3]]).T
+    #             ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
+    #             temp0 = ll[:4].T
+    #             temp0 = temp0[:, [2, 1, 0, 3]]
+    #         for temp1 in temp0:
+    #             annotations.append([seriesuid] + temp1.tolist())
+    if "meth" in datasource:
         data_dir = config.DATA_DIR
-        pos_label_file = config.POS_LABEL_FILE
-        info_file = config.INFO_FILE
-        pos_df = pd.read_csv(os.path.join(data_dir, pos_label_file), dtype={"date": str})
-        imageInfo = np.load(os.path.join(data_dir, info_file), allow_pickle=True)["info"]
-
-        patient2Image = {"{:s}-{:s}".format(info['pstr'], info['date']): id
-                         for info, id in zip(imageInfo, np.arange(len(imageInfo)))}
-        for seriesuid in seriesUIDs:
-
-            imageId = patient2Image[seriesuid]
-            pstr = imageInfo[imageId]["pstr"]
-            dstr = imageInfo[imageId]["date"]
-            thickness = imageInfo[imageId]["sliceThickness"]
-            spacing = imageInfo[imageId]["pixelSpacing"]
-            existId = (pos_df["patient"] == pstr) & (pos_df["date"] == dstr)
-            pos = pos_df[existId]
-            temp0 = pos[["x", "y", "z", "d"]].values
-
-            if pos_label_file != "pos_labels_norm.csv":
-                temp0 = np.array([resample_pos(p, thickness, spacing) for p in temp0])
-            # pos = pos[:, [2, 1, 0, 3]]
-            if config.CROP_LUNG:
-                extendbox = np.load(imageInfo[imageId]["imagePath"].replace(".npz", "_extendbox.npz"))["extendbox"]
-                ll = np.copy(temp0[:, [2, 1, 0, 3]]).T
-                ll[:3] = ll[:3] - np.expand_dims(extendbox[:, 0], 1)
-                temp0 = ll[:4].T
-                temp0 = temp0[:, [2, 1, 0, 3]]
-            for temp1 in temp0:
-                annotations.append([seriesuid] + temp1.tolist())
+        filepaths = glob.glob(data_dir + "/*/*_clean.npz")
+        for data_path in filepaths:
+            dirname = os.path.dirname(data_path)
+            filename = data_path.split("/")[-1].rstrip("_clean.npz")
+            label = np.load(os.path.join(dirname, filename + '_label.npz'), allow_pickle=True)["label"]
+            label = label[label[:, -1] < config.MAX_NODULE_SIZE]  ## remove nodule larger than specific size
+            label = label[:, [2, 1, 0, 3]] ## change to (x, y, z, d)
+            if np.all(label == 0):
+                continue
+            for l in label:
+                annotations.append([filename] + l.tolist())
     elif datasource == "luna":
         label_path = os.path.join("./LUNA16", config.POS_LABEL_FILE)
         label_exclude_path = os.path.join("./LUNA16", config.POS_LABEL_EXCLUDE_FILE)
@@ -698,17 +712,25 @@ if __name__ == '__main__':
 
     datasource = args.datasource
 
-    if datasource == "lunaRaw":
-        from dataLoader.lunaRaw import LunaRaw, LunaConfig
+    if datasource == "luna":
+        from dataLoader import LunaConfig
         config = LunaConfig()
         convertcsv = convertcsv_luna
-    elif datasource == "luna":
-        from dataLoader.luna import Luna, LunaConfig
-        config = LunaConfig()
-        convertcsv = convertcsv_luna
-    elif datasource == "methodistFull":
-        from dataLoader.methodistFull import MethodistFull, IncidentalConfig
+    elif datasource == "methodist":
+        from dataLoader import IncidentalConfig
         config = IncidentalConfig()
+        convertcsv = convertcsv_methodist
+    elif datasource == "methBenMinmax":
+        from dataLoader import DataBenConfigV0
+        config = DataBenConfigV0()
+        convertcsv = convertcsv_methodist
+    elif args.datasource == "methBenMinmaxNew":
+        from dataLoader import DataBenConfigV1
+        config = DataBenConfigV1()
+        convertcsv = convertcsv_methodist
+    elif datasource == "methKelvinMinmax":
+        from dataLoader import DataKelvinConfigV0
+        config = DataKelvinConfigV0()
         convertcsv = convertcsv_methodist
 
     detp = args.detp

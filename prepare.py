@@ -987,7 +987,7 @@ def make_lungmask(img, display=False, pad_value=-3000):
         plt.show()
     return mask * raw_img + (1 - mask).astype('uint8') * pad_value, mask
 
-from prepare_lung.lung_seg import lung_seg_single
+# from prepare_lung.lung_seg import lung_seg_single
 def mask_scan_Kelvin(images):
     # Reverse the image from [z, y, x] to [x, y, z]
     images = images.transpose(2, 1, 0)

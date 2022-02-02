@@ -17,7 +17,13 @@ start = time.time()
 # data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient453/"
 # data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient455/"
 # data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient422/"
-data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient373/"
+# data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient394/"
+# data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient373/"
+# data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient340/"
+# data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient354/"
+# data_dir = "./Methodist_incidental/data_Kelvin/Nifti_data/Lung_patient254/"
+# data_dir = "./Methodist_incidental/data_Kelvin/Nifti_data/Lung_patient175/"
+data_dir = "./Methodist_incidental/data_Kelvin/Nifti_data/Lung_patient373/"
 # filename = "20160716_CT.nii.gz"
 # filename = "20130912_PET-CT.nii.gz"
 # filename = "patient477_20181017.nii.gz"
@@ -29,8 +35,13 @@ data_dir = "./Methodist_incidental/data_Ben/resampled_nifti/Lung_patient373/"
 # filename = "patient453-20180530.nii.gz"
 # filename = "patient455-20180720.nii.gz"
 # filename = "patient422-20180507.nii.gz"
-filename = "patient373-20171120.nii.gz"
-
+# filename = "patient394-20180209.nii.gz"
+# filename = "patient373-20171120.nii.gz"
+# filename = "patient340-20170810.nii.gz"
+# filename = "patient354-20171013.nii.gz"
+# filename = "patient254_20160613.nii.gz"
+# filename = "patient175_20150818.nii.gz"
+filename = "patient373_20171120.nii.gz"
 
 
 filepath = os.path.join(data_dir, filename)
@@ -51,7 +62,7 @@ if not 0 in CC[: ,: ,-1]:
 tmp = CC[CC != 0]
 numPixels = Counter(tmp)
 idx, biggest = numPixels.most_common(1)[0]
-mask = np.zeros_like(CT)
+mask = np.zeros_like(CT, dtype=np.int8)
 mask[CC == idx] = 1
 
 save_path = os.path.join(data_dir, filename.replace(".nii.gz", "_mask_step1.nii.gz"))
@@ -64,10 +75,10 @@ print("Save to: ", save_path)
 head_to_toe_profile = np.sum(mask, axis=(0, 1))
 # Assume 40% threshold for body cross section is neck position
 max_area = max(head_to_toe_profile[head_to_toe_profile != mask.shape[0] * mask.shape[1]])
-ind = np.where(head_to_toe_profile > 0.7 * max_area)[0]  # change from 0.4 to 0.6
+ind = np.where(head_to_toe_profile > 0.8 * max_area)[0]  # change from 0.4 to 0.6
 # Smart masking of neck and up
 
-max_ind = 332
+max_ind = 132
 mask[1: -1, 1: -1, : min(ind) + 1] = 1
 mask[1: -1, 1: -1, max(ind): ] = 1
 # mask[1: -1, 1: -1, max_ind: ] = 1

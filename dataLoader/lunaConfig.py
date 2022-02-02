@@ -4,6 +4,8 @@
     modeNorm_files: masked -> resampled -> modeNorm, pad = 0
 '''
 class LunaConfig(object):
+
+    ## Data Config
     # DATA_DIR = "./LUNA16/masked_files/"
     # DATA_DIR = "./LUNA16/preprocessed/"
     DATA_DIR = "./LUNA16/modeNorm_files/"
@@ -21,9 +23,10 @@ class LunaConfig(object):
     POS_LABEL_FILE = 'annotations.csv'
     POS_LABEL_EXCLUDE_FILE = 'annotations_excluded.csv'
     BLACK_LIST = []
+    PAD_VALUE = 0 # -3000, 0, 170
 
-    ANCHORS = [5., 10., 20.]
-    # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
+    ## Model Config
+    ANCHORS = [5., 10., 20.]  # ANCHORS = [5., 10., 20.]  # [ 10.0, 30.0, 60.]
     CHANNEL = 1
     CROP_SIZE = [96, 96, 96]
     STRIDE = 4
@@ -40,16 +43,12 @@ class LunaConfig(object):
     SIZE_LIM3 = 20  # 40
     AUG_SCALE = True
     R_RAND_CROP = 0.3
-    PAD_VALUE = 0 # -3000, 0, 170
     AUGTYPE = {"flip": True, "swap": False, "scale": True, "rotate": False}
-
     CONF_TH = 4
     NMS_TH = 0.3
     DETECT_TH = 0.5
-
     SIDE_LEN = 144
     MARGIN = 32
-
     ORIGIN_SCALE = False
 
     def display(self):
